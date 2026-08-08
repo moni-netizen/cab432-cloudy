@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import boto3
+from boto3.dynamodb.conditions import Key
 
 from typing import Any
 
@@ -74,14 +75,48 @@ def cloud_create_moment(moment_data: dict[str, Any]) -> dict[str, Any]:
     print("Item inserted.")
     return copy_record(record)
 
-#
-def find_moment_by_id(moment_id: str) -> dict[str, Any] | None:
+
+# def find_moment_by_id(moment_id: str) -> dict[str, Any] | None:
+#     """Find moment by id and return it when available."""
+#     return copy_record(next((moment for moment in _moments() if moment["id"] == moment_id), None))
+
+# is meant to be the query or GET
+def _find_moment_by_id(moment_id: str) -> dict[str, Any] | None:
     """Find moment by id and return it when available."""
-    return copy_record(next((moment for moment in _moments() if moment["id"] == moment_id), None))
+    response = table.query(
+        KeyConditionExpression = Key("momentId").eq(moment_id)
+    )
+
+    print(response["Items"])
 
 
 def update_moment(moment_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
     """Update moment and return the updated payload."""
+    for moment in _moments():
+        if moment["id"] == moment_id:
+            for key, value in updates.items():
+                if value is not None and key != "id":
+                    moment[key] = value
+            moment["updatedAt"] = now_iso()
+            persist()
+            return copy_record(moment)
+    return None
+
+def _update_moment(moment_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
+    """Update moment and return the updated payload."""
+    update_expression = "set" + ""
+    response = table.update_item(
+        Key = {"momentId": moment_id}, 
+        UpdateExpression = "set info.",
+        ConditionExpression = ""
+    )
+
+    response = table.update_item(
+        Key = {
+            "momentId": moment_id,
+            "updatedAt": now_iso()
+        }
+    )
     for moment in _moments():
         if moment["id"] == moment_id:
             for key, value in updates.items():
