@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 
+# this seems to be the place where moments get routed to their respective APIs
 from ..controllers.moment_controller import (
     create_moment_controller,
     delete_moment_controller,
