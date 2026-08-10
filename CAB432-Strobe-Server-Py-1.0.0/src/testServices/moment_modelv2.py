@@ -55,7 +55,7 @@ def _moments() -> list[dict[str, Any]]:
 #     return copy_record(moment)
 
 # this is for the POST /v1/moments API
-def cloud_create_moment(moment_data: dict[str, Any]) -> dict[str, Any]:
+def create_moment(moment_data: dict[str, Any]) -> dict[str, Any]:
     """Create a DynamoDB entry and return the created item."""
     record = {
         "id": moment_data.get("id", generate_id()),
@@ -81,7 +81,7 @@ def cloud_create_moment(moment_data: dict[str, Any]) -> dict[str, Any]:
 #     return copy_record(next((moment for moment in _moments() if moment["id"] == moment_id), None))
 
 # is meant to be the query or GET
-def _find_moment_by_id(moment_id: str) -> dict[str, Any] | None:
+def find_moment_by_id(moment_id: str) -> dict[str, Any] | None:
     """Find moment by id and return it when available."""
     response = table.query(
         KeyConditionExpression = Key("momentId").eq(moment_id)
@@ -90,69 +90,118 @@ def _find_moment_by_id(moment_id: str) -> dict[str, Any] | None:
     print(response["Items"])
 
 
+# def update_moment(moment_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
+#     """Update moment and return the updated payload."""
+#     for moment in _moments():
+#         if moment["id"] == moment_id:
+#             for key, value in updates.items():
+#                 if value is not None and key != "id":
+#                     moment[key] = value
+#             moment["updatedAt"] = now_iso()
+#             persist()
+#             return copy_record(moment)
+#     return None
+
 def update_moment(moment_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
     """Update moment and return the updated payload."""
-    for moment in _moments():
-        if moment["id"] == moment_id:
-            for key, value in updates.items():
-                if value is not None and key != "id":
-                    moment[key] = value
-            moment["updatedAt"] = now_iso()
-            persist()
-            return copy_record(moment)
-    return None
+    fields = {
+        key: value
+        for key, value in updates.items()
+        if value is not None and key !="momentId"
+    }
+    fields["updatedAt"] = now_iso()
 
-def _update_moment(moment_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
-    """Update moment and return the updated payload."""
-    update_expression = "set" + ""
+    update_expression_parts = []
+    expression_attribute_names = {}
+    expression_attribute_values = {}
+
+    for key,value in fields.items():
+        name_placeholder = f"#{key}"
+        value_placeholder = f":{key}"
+        update_expression_parts.append(f"{name_placeholder} = {value_placeholder}")
+        expression_attribute_names[name_placeholder] = key
+        expression_attribute_values[value_placeholder] = value
+
+    update_expression = "SET" + ", ".join(update_expression_parts)
+
     response = table.update_item(
         Key = {"momentId": moment_id}, 
-        UpdateExpression = "set info.",
-        ConditionExpression = ""
+        UpdateExpression = update_expression,
+        ExpressionAttributeNames = expression_attribute_names,
+        ExpressionAttributeValues = expression_attribute_values
     )
 
-    response = table.update_item(
-        Key = {
-            "momentId": moment_id,
-            "updatedAt": now_iso()
-        }
-    )
-    for moment in _moments():
-        if moment["id"] == moment_id:
-            for key, value in updates.items():
-                if value is not None and key != "id":
-                    moment[key] = value
-            moment["updatedAt"] = now_iso()
-            persist()
-            return copy_record(moment)
     return None
+
+
+# def delete_moment(moment_id: str) -> bool:
+#     """Delete moment data for the requested context."""
+#     moments = _moments()
+#     index = next((i for i, moment in enumerate(moments) if moment["id"] == moment_id), None)
+#     if index is None:
+#         return False
+#     del moments[index]
+#     persist()
+#     return True
 
 
 def delete_moment(moment_id: str) -> bool:
-    """Delete moment data for the requested context."""
-    moments = _moments()
-    index = next((i for i, moment in enumerate(moments) if moment["id"] == moment_id), None)
-    if index is None:
-        return False
-    del moments[index]
-    persist()
-    return True
+    """Delete moment data for the requested context"""
+    response = table.delete_item(
+        Key = {
+            "momentId": moment_id
+        }
+    )
 
+
+# def get_moments_by_user_ids(user_ids: list[str]) -> list[dict[str, Any]]:
+#     """Return moments by user ids data for the requested context."""
+#     moments = [copy_record(moment) for moment in _moments() if moment["userId"] in user_ids]
+#     moments.sort(key=lambda moment: moment["createdAt"], reverse=True)
+#     return moments
 
 def get_moments_by_user_ids(user_ids: list[str]) -> list[dict[str, Any]]:
     """Return moments by user ids data for the requested context."""
-    moments = [copy_record(moment) for moment in _moments() if moment["userId"] in user_ids]
-    moments.sort(key=lambda moment: moment["createdAt"], reverse=True)
-    return moments
+    keys_list = [{"userId": user_id} for user_id in user_ids]
+    response = table.batch_get_item(
+        RequestItems = {
+            "Keys": keys_list
+        }
+    )
 
+    return response
+
+# def get_moments_by_user_id(user_id: str) -> list[dict[str, Any]]:
+#     """Return moments by user id data for the requested context."""
+#     return get_moments_by_user_ids([user_id])
 
 def get_moments_by_user_id(user_id: str) -> list[dict[str, Any]]:
     """Return moments by user id data for the requested context."""
-    return get_moments_by_user_ids([user_id])
+    response = table.query(
+        KeyConditionExpression = Key("userId").eq(user_id)
+    )
 
+    return response 
+
+
+
+
+# def delete_moments_by_user_id(user_id: str) -> None:
+#     """Delete moments by user id data for the requested context."""
+#     db()["moments"] = [moment for moment in _moments() if moment["userId"] != user_id]
+#     persist()
 
 def delete_moments_by_user_id(user_id: str) -> None:
     """Delete moments by user id data for the requested context."""
-    db()["moments"] = [moment for moment in _moments() if moment["userId"] != user_id]
-    persist()
+    moments = get_moments_by_user_id(user_id).get("Items", [])
+    
+    with table.batch_writer() as batch:
+        for key in moments:
+            batch.delete_item(
+                Key = {
+                    "momentId": key["momentId"]
+                }
+            )
+
+
 
