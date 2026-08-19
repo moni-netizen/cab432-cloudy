@@ -71,9 +71,9 @@ def create_moment(moment_data: dict[str, Any]) -> dict[str, Any]:
         "updatedAt": moment_data.get("updatedAt", now_iso()),
     }
 
-    table.put_item(Item = record)
+    response = table.put_item(Item = record)
     print("Item inserted.")
-    return copy_record(record)
+    return response["Item"]
 
 
 # def find_moment_by_id(moment_id: str) -> dict[str, Any] | None:
@@ -83,11 +83,11 @@ def create_moment(moment_data: dict[str, Any]) -> dict[str, Any]:
 # is meant to be the query or GET
 def find_moment_by_id(moment_id: str) -> dict[str, Any] | None:
     """Find moment by id and return it when available."""
-    response = table.query(
-        KeyConditionExpression = Key("momentId").eq(moment_id)
+    response = table.get_item(
+        Key = {"momentId": moment_id}
     )
 
-    print(response["Items"])
+    return response["Item"]
 
 
 # def update_moment(moment_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
@@ -122,7 +122,7 @@ def update_moment(moment_id: str, updates: dict[str, Any]) -> dict[str, Any] | N
         expression_attribute_names[name_placeholder] = key
         expression_attribute_values[value_placeholder] = value
 
-    update_expression = "SET" + ", ".join(update_expression_parts)
+    update_expression = "SET " + ", ".join(update_expression_parts)
 
     response = table.update_item(
         Key = {"momentId": moment_id}, 
@@ -131,7 +131,7 @@ def update_moment(moment_id: str, updates: dict[str, Any]) -> dict[str, Any] | N
         ExpressionAttributeValues = expression_attribute_values
     )
 
-    return None
+    return response["Item"]
 
 
 # def delete_moment(moment_id: str) -> bool:
@@ -153,6 +153,8 @@ def delete_moment(moment_id: str) -> bool:
         }
     )
 
+    return response["Attributes"]
+
 
 # def get_moments_by_user_ids(user_ids: list[str]) -> list[dict[str, Any]]:
 #     """Return moments by user ids data for the requested context."""
@@ -169,7 +171,7 @@ def get_moments_by_user_ids(user_ids: list[str]) -> list[dict[str, Any]]:
         }
     )
 
-    return response
+    return response.get("Items", [])
 
 # def get_moments_by_user_id(user_id: str) -> list[dict[str, Any]]:
 #     """Return moments by user id data for the requested context."""
@@ -181,7 +183,7 @@ def get_moments_by_user_id(user_id: str) -> list[dict[str, Any]]:
         KeyConditionExpression = Key("userId").eq(user_id)
     )
 
-    return response 
+    return response.get("Items", [])
 
 
 
