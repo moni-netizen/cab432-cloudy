@@ -1,0 +1,5 @@
+pydantic-ai-slim[bedrock,mcp]>=2.0.0
+fastmcp>=2.0.0
+PyGithub>=2.0.0
+httpx>=0.28.1
+pydantic-ai>=2.0.0
