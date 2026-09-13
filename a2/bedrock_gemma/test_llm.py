@@ -22,10 +22,11 @@ MODEL_ID = "google.gemma-3-12b-it"
 
 # for now, this is my git access file :(
 # change later to the actual MCP server in the cloud
-MCP_SERVER = Path(__file__).parents[0] / "github_access.py"
+MCP_SERVER = Path(__file__).parents[1] / "mcp_server" / "github_access.py"
+MCP_VENV_PYTHON = Path(__file__).parents[1] / "mcp_server" / "venv" / "Scripts" / "python.exe"  # Windows
 
 model = BedrockConverseModel(MODEL_ID, provider=BedrockProvider(region_name=REGION))
-mcp_toolset = MCPToolset(StdioTransport(command=sys.executable, args=[str(MCP_SERVER)]))
+mcp_toolset = MCPToolset(StdioTransport(command=str(MCP_VENV_PYTHON), args=[str(MCP_SERVER)]))
 
 agent = Agent(
     model,
