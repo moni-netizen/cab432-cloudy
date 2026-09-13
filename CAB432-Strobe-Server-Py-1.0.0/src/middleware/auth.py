@@ -10,7 +10,6 @@ from ..config.settings import settings
 from ..errors import AppError, forbidden_error, unauthorised_error
 from ..models.user_model import find_user_by_id
 
-
 def generate_token(user: dict) -> str:
     """Generate a signed JWT for the authenticated user."""
     payload = {

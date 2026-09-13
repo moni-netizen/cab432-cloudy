@@ -4,7 +4,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from typing import Any
 
-from ..utils.id_generator import generate_id # fix later
+from utils.id_generator import generate_id # fix later
 
 ## connecting the dynamodb table
 table_name = "n12023868-comments" 

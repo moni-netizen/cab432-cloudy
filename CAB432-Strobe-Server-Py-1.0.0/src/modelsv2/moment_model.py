@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from common.generate_id import generate_id
-
 import boto3
 from boto3.dynamodb.conditions import Key
 
@@ -9,7 +7,7 @@ from typing import Any
 
 from id_generator import generate_id # do this later
 
-table_name = "n12023868-moments" ##change name soon! formerly n...-a1-moments
+table_name = "n12023868-moments" 
 
 dynamodb = boto3.resource(
     "dynamodb",
@@ -93,6 +91,7 @@ def delete_moment(moment_id, user_id):
 
 def get_moments_by_user_ids(user_ids: list[str]) -> list[dict[str, Any]]:
     """Return moments by user ids data for the requested context."""
+
     keys_list = [{"userId": user_id} for user_id in user_ids]
     response = table.batch_get_item(
         RequestItems = {
@@ -112,10 +111,12 @@ def get_moments_by_user_id(user_id: str) -> list[dict[str, Any]]:
 
 def delete_moments_by_user_id(user_id: str) -> bool:
     """Delete moments by user id data for the requested context."""
-    moments = get_moments_by_user_id(user_id).get("Items", [])
+    moments_to_delete = table.query(
+        KeyConditionExpression = Key("userId").eq(user_id)
+    ).get("Items", [])
     
     with table.batch_writer() as batch:
-        for key in moments:
+        for key in moments_to_delete:
             batch.delete_item(
                 Key = {
                     "momentId": key["momentId"]
