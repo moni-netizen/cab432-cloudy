@@ -1,0 +1,121 @@
+from __future__ import annotations
+from github import Auth, Github
+from fastmcp import FastMCP
+
+import json
+import boto3 #make sure to add this in the requirements.txt
+
+# my super scummy PAT storage (sorry)
+token = "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"
+auth = Auth.Token(token)
+g = Github(auth=auth)
+
+# retrieve our repo
+repo_name = "moni-netizen/gcsim-test"
+repo = g.get_repo(repo_name)
+
+#region s3_vector housing
+REGION = "ap-southeast-2"
+BUCKET = "n12023868-issues-vector"  
+INDEX = "lodged-issues"
+
+TITAN_MULTIMODAL_MODEL_ID = "amazon.titan-embed-image-v1"
+VISION_MODEL_ID = "google.gemma-3-12b-it"
+#endregion s3_vector housing
+
+
+#region s3_vectors & bedrock
+bedrock = boto3.client("bedrock-runtime", region_name = REGION)
+s3vectors = boto3.client("s3vectors", region_name = REGION)
+#endregion s3_vectors & bedrock
+
+#region embed-with-titan
+def invoke_titan(payload: dict) -> list[float]:
+    """Return one 256-dimensional Titan Multimodal embedding."""
+    # Bedrock creates the embedding; S3 Vectors stores and searches it.
+    response = bedrock.invoke_model(
+        modelId=TITAN_MULTIMODAL_MODEL_ID,
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(payload),
+    )
+    return json.loads(response["body"].read())["embedding"]
+#endregion embed-with-titan
+
+#region embed-issue
+def embed_issue(issue_id: int) -> tuple[dict, list[float]]:
+    """Embed an issue body into the vector space. im pre sure the string 'text' 
+       will need to be changed at some point to... something related to the issue"""
+
+    # get the issue info
+    issue = repo.get_issue(issue_id) 
+
+    issue_info = {
+                    "issueNo": issue_id,
+                    "title": issue.title,
+                    "url": issue.html_url
+                }
+
+    return issue_info, invoke_titan(
+        {"inputText": f"{issue.title}-{issue.body}", "embeddingConfig": {"outputEmbeddingLength": DIMENSION}},
+    )
+#endregion embed-issue
+
+#region find-similar
+def find_similar_issues(issue_id: int):
+    """This will retrieve the three most similar results and return them to the bot.
+       Our assistant will then process these issues and write a comment to the issue.  """
+
+    info, embedding = embed_issue(issue_id)
+  
+    result = s3vectors.query_vectors(
+        vectorBucketName=BUCKET,
+        indexName=INDEX,
+        queryVector={"float32": embedding},
+        topK=3,
+        returnDistance=True,
+        returnMetadata=True,
+    )
+    vectors = result.get("vectors",[])
+    matching_ids = []
+
+    if len(vectors) > 0:
+        for vector in vectors:
+            matching_ids.append(vector.get("metadata").get("issueNo"))
+
+    # returns the three most similar issues by issue number        
+    return(matching_ids)
+#endregion find-similar
+
+#region store-issue-to-s3
+def store_issue(issue_info: dict, embedding: list[float]) -> None:
+    """Store a message into Amazon S3 vectors. This will submit images of pull 
+       requests and also like... text descriptions i guess? This gets called after find_similar_issues
+       to ensure we retrieve the AI's response and any images."""
+    
+    # add this new issue into the s3 vector bucket
+    s3vectors.put_vectors(
+        vectorBucketName = BUCKET,
+        indexName = INDEX,
+        vectors = [
+            {
+                "key": f"issue-{issue_info.get("issueNo")}",
+                "data": {"float32": embedding},
+                "metadata": issue_info  
+            }
+        ]
+    )
+#endregion store-issue-to-s3
+
+#region check-and-store-s3
+def check_and_store(issue_id: int) -> list[int]:
+    """
+    Finds similar issues to that of our current issue_id, and stores
+    info inside the s3 vector base for future queries. 
+    """
+    similar_issues = find_similar_issues(issue_id)
+    issue_info, embeddings = embed_issue(issue_id)
+
+    store_issue(issue_info, embeddings)
+    return(similar_issues)
+#endregion check-and-store-s3
