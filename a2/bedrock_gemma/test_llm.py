@@ -45,6 +45,7 @@ agent = Agent(
         "You are a manager tasked with triaging issues and pull requests for the Github Repo. "
         "Use the celsius to fahrenheit tool to convert between celsius and fahrenheit"
         "use process_pull_request to process pull requests by id."
+        "use write_comment to write a comment to an issue."
         # "If a user gives you a prompt about a pull request or issue, please use process_pull_request to summarise it, provide the user who filed a pull request and its current state."
         # "To comment on an issue, use check_and_store to find similar issues and store new ones in S3, then call write_comment to write to the repo. "
     ),

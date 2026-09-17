@@ -40,6 +40,20 @@ def celsius_to_fahrenheit(celsius: float) -> str:
     """
     return f"{celsius:.1f}°C is 70°F"
 
+@mcp.tool
+def write_comment(id: int, response: str) -> dict:
+    """Write a comment to this issue. I'm not actuall """
+    issue = repo.get_issue(number = id)
+    issue_comments = issue.get_comments()
+    
+    # check if a comment has already been written
+    if issue_comments.totalCount == 0 and issue.state == "open":
+        issue.create_comment(response)
+        return {"status": 200, "body": "comment posted."}
+            
+    else:
+        return {"status": 401, "body": "issue closed or already commented. disregard request."}
+
 
 if __name__ == "__main__":
     mcp.run(show_banner = False)
