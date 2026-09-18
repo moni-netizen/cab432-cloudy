@@ -52,6 +52,29 @@ agent = Agent(
     toolsets=[mcp_toolset],
 )
 
+
+
+async def chat() -> None:
+    """Keep one MCP connection and one conversation history for the chat session."""
+    message_history = None
+    print("Ask a question, or type 'quit' to exit.")
+    print("Try: Convert 20 degrees Celsius to Fahrenheit.")
+
+    # Entering the agent starts the MCP stdio server and discovers its tools.
+    async with agent:
+        while True:
+            prompt = input("You: ").strip()
+            if prompt.lower() in {"quit", "exit"}:
+                break
+            if not prompt:
+                continue
+
+            # Include earlier messages so the agent can follow the conversation.
+            result = await agent.run(prompt, message_history=message_history)
+            message_history = result.all_messages()
+            print(f"Assistant: {result.output}")
+
+
 if __name__ == "__main__":
-    run_acp_stdio_sync(agent, name = "CAB432 A2 TEST MCP AGENT", version = "1.0.0")
-    #asyncio.run(chat())
+    #run_acp_stdio_sync(agent, name = "CAB432 A2 TEST MCP AGENT", version = "1.0.0")
+    asyncio.run(chat())

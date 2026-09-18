@@ -124,7 +124,7 @@ def store_issue(issue_info: dict, embedding: list[float]) -> None:
         ]
     )
 
-def find_similar_issues(issue_id: int):
+def find_similar_issues(issue_id: int) -> list:
     """This will retrieve the three most similar results and return them to the bot.
        Our assistant will then process these issues and write a comment to the issue.  """
 
@@ -146,7 +146,7 @@ def find_similar_issues(issue_id: int):
             matching_ids.append(vector.get("metadata").get("issueNo"))
 
     # returns the three most similar issues by issue number        
-    return(matching_ids)
+    return(return_bodies(matching_ids))
 
 def return_bodies(items: list) -> list:
     payload = []
