@@ -8,7 +8,7 @@ from fastmcp import FastMCP
 # my super scummy PAT storage (sorry)
 token = "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"
 
-#github shit
+#github stuff
 auth = Auth.Token(token)
 g = Github(auth = auth)
 repo_name = "moni-netizen/gcsim-test"
