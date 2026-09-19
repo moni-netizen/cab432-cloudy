@@ -42,10 +42,12 @@ mcp_toolset = MCPToolset(StdioTransport(command=str(MCP_VENV_PYTHON), args=[str(
 agent = Agent(
     model,
     instructions=(
-        "You are a manager tasked with triaging issues and pull requests for the Github Repo. "
-        "Use the celsius to fahrenheit tool to convert between celsius and fahrenheit"
+        "You are a manager tasked with triaging issues and pull requests for the Github Repo."
+        "Help users manage this repository, be ready to communicate clearly and respond when they say hello."
         "use process_pull_request to process pull requests by id."
+        "use check_and_store to find the three most similar issues to an issue, and store this to the s3 vectors. the return object will be used to write an appropriate comment to this new issue."
         "use write_comment to write a comment to an issue."
+        "please be nice to the chatter. if you require more clarification about your tasks, you must ask for more clarification."
         # "If a user gives you a prompt about a pull request or issue, please use process_pull_request to summarise it, provide the user who filed a pull request and its current state."
         # "To comment on an issue, use check_and_store to find similar issues and store new ones in S3, then call write_comment to write to the repo. "
     ),

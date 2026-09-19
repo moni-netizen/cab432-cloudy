@@ -8,6 +8,14 @@ import sys
 from contextlib import suppress
 from pathlib import Path
 
+import base64
+import time
+import uuid
+from decimal import Decimal
+
+import boto3
+import json
+
 from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
@@ -18,6 +26,75 @@ AGENT_SCRIPT = Path(__file__).parents[1] / "bedrock_gemma" / "test_llm.py"
 AGENT_PYTHON = Path(__file__).parents[1] / "bedrock_gemma" / "venv" / "Scripts" / "python.exe"  # Windows
 LOGGER = logging.getLogger(__name__)
 CONNECTION_IDS = itertools.count(1)
+
+DDB_TABLE = "n12023868-message-history"
+S3_BUCKET = "n12023868-images-history"
+REGION = "ap-southeast-2"
+
+
+
+dynamodb = boto3.resource("dynamodb", region_name=REGION)
+table = dynamodb.Table(DDB_TABLE)
+s3 = boto3.client("s3", region_name=REGION)
+
+def _extract_prompt_text(parsed: dict) -> str | None:
+    """Return the user's prompt text if this message is a session/prompt call."""
+    if parsed.get("method") != "session/prompt":
+        return None
+    prompt_blocks = parsed.get("params", {}).get("prompt", [])
+    texts = [block.get("text", "") for block in prompt_blocks if block.get("type") == "text"]
+    return "\n".join(texts) if texts else None
+
+def _extract_images(obj, message_id: str, images: list) -> None:
+    """Recursively find image content blocks, collect their bytes for S3,
+    and replace the base64 payload in place with a reference."""
+    if isinstance(obj, dict):
+        if obj.get("type") == "image" and "data" in obj:
+            key = f"{message_id}/{uuid.uuid4()}.bin"
+            image_bytes = base64.b64decode(obj["data"])
+            images.append((key, image_bytes, obj.get("mimeType", "application/octet-stream")))
+            obj["data"] = f"s3://{S3_BUCKET}/{key}"
+        else:
+            for value in obj.values():
+                _extract_images(value, message_id, images)
+    elif isinstance(obj, list):
+        for item in obj:
+            _extract_images(item, message_id, images)
+
+def _store_message_sync(connection_id: int, direction: str, raw_message: str) -> None:
+    try:
+        parsed = json.loads(raw_message)
+    except json.JSONDecodeError:
+        return  # not JSON, nothing to store
+
+    prompt_text = _extract_prompt_text(parsed)
+    if prompt_text is None:
+        return  # not a prompt message, skip storing entirely
+
+    message_id = str(uuid.uuid4())
+    images: list = []
+    _extract_images(parsed, message_id, images)  # in case a prompt block is an image
+
+    for key, image_bytes, content_type in images:
+        s3.put_object(Bucket=S3_BUCKET, Key=key, Body=image_bytes, ContentType=content_type)
+
+    table.put_item(Item={
+        "connectionId": connection_id,
+        "messageId": message_id,
+        "direction": direction,
+        "timestamp": Decimal(str(time.time())),
+        "prompt": prompt_text,
+        "imageKeys": [key for key, _, _ in images],
+    })
+
+async def record_message(connection_id: int, direction: str, raw_message: str) -> None:
+    try:
+        await asyncio.to_thread(_store_message_sync, connection_id, direction, raw_message)
+    except Exception:
+        LOGGER.exception(
+            "Connection %s: failed to persist %s message", connection_id, direction
+        )
+
 
 async def relay(websocket: ServerConnection) -> None:
     """Run one stdio ACP agent and relay this browser connection to it."""
@@ -48,8 +125,13 @@ async def relay(websocket: ServerConnection) -> None:
     assert process.stderr is not None
 
     # One task carries browser requests to stdio; the other streams ACP updates back.
-    browser_to_agent = asyncio.create_task(copy_to_agent(websocket, process.stdin))
-    agent_to_browser = asyncio.create_task(copy_to_browser(process.stdout, websocket))
+    # browser_to_agent = asyncio.create_task(copy_to_agent(websocket, process.stdin))
+    # agent_to_browser = asyncio.create_task(copy_to_browser(process.stdout, websocket))
+    # log_stderr = asyncio.create_task(log_agent_stderr(process.stderr, connection_id))
+
+    storage_tasks: set[asyncio.Task] = set()
+    browser_to_agent = asyncio.create_task(copy_to_agent(connection_id, websocket, process.stdin, storage_tasks))
+    agent_to_browser = asyncio.create_task(copy_to_browser(connection_id, process.stdout, websocket, storage_tasks))
     log_stderr = asyncio.create_task(log_agent_stderr(process.stderr, connection_id))
 
     try:
@@ -105,19 +187,26 @@ async def relay(websocket: ServerConnection) -> None:
 
 
 #region relay-records
-async def copy_to_agent(websocket: ServerConnection, stdin: asyncio.StreamWriter) -> None:
+async def copy_to_agent(connection_id: int, websocket: ServerConnection, stdin: asyncio.StreamWriter, storage_tasks: set[asyncio.Task]) -> None:
     async for message in websocket:
         if isinstance(message, bytes) or "\n" in message or "\r" in message:
             raise ValueError("ACP WebSocket messages must be one text JSON-RPC record")
+        task = asyncio.create_task(record_message(connection_id, "to_agent", message))
+        storage_tasks.add(task)
+        task.add_done_callback(storage_tasks.discard)
         stdin.write(message.encode("utf-8") + b"\n")
         await stdin.drain()
 
 
-async def copy_to_browser(stdout: asyncio.StreamReader, websocket: ServerConnection) -> None:
+async def copy_to_browser(connection_id: int, stdout: asyncio.StreamReader, websocket: ServerConnection, storage_tasks: set[asyncio.Task]) -> None:
     while line := await stdout.readline():
         message = line.rstrip(b"\r\n")
         if message:
-            await websocket.send(message.decode("utf-8"))
+            text = message.decode("utf-8")
+            task = asyncio.create_task(record_message(connection_id, "to_browser", text))
+            storage_tasks.add(task)
+            task.add_done_callback(storage_tasks.discard)
+            await websocket.send(text)
 #endregion relay-records
 
 
