@@ -76,5 +76,5 @@ async def chat() -> None:
 
 
 if __name__ == "__main__":
-    #run_acp_stdio_sync(agent, name = "CAB432 A2 TEST MCP AGENT", version = "1.0.0")
-    asyncio.run(chat())
+    run_acp_stdio_sync(agent, name = "CAB432 A2 TEST MCP AGENT", version = "1.0.0")
+    #asyncio.run(chat())

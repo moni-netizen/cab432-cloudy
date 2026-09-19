@@ -54,16 +54,19 @@ def process_pull_request(pr_number: int) -> dict:
 @mcp.tool
 def write_comment(id: int, response: str) -> dict:
     """Write a comment to this issue. I'm not actuall """
-    issue = repo.get_issue(number = id)
-    issue_comments = issue.get_comments()
-    
-    # check if a comment has already been written
-    if issue_comments.totalCount == 0 and issue.state == "open":
-        issue.create_comment(response)
-        return {"status": 200, "body": "comment posted."}
-            
-    else:
-        return {"status": 401, "body": "issue closed or already commented. disregard request."}
+    try:
+        issue = repo.get_issue(number = id)
+        issue_comments = issue.get_comments()
+        
+        # check if a comment has already been written
+        if issue_comments.totalCount == 0 and issue.state == "open":
+            issue.create_comment(response)
+            return {"status": 200, "body": "comment posted."}
+                
+        else:
+            return {"status": 401, "body": "issue closed or already commented. disregard request."}
+    except:
+        return {"status": 400, "body": "error during calculations."}
 
 @mcp.tool
 def check_and_store(issue_id: int) -> list:
@@ -71,11 +74,14 @@ def check_and_store(issue_id: int) -> list:
     Finds similar issues to that of our current issue_id, and stores
     info inside the s3 vector base for future queries. 
     """
-    similar_issues = find_similar_issues(issue_id)
-    issue_info, embeddings = embed_issue(issue_id)
+    try:
+        similar_issues = find_similar_issues(issue_id)
+        issue_info, embeddings = embed_issue(issue_id)
 
-    store_issue(issue_info, embeddings)
-    return(similar_issues)
+        store_issue(issue_info, embeddings)
+        return(similar_issues)
+    except:
+        return([])
 
 #region helper-functions
 def invoke_titan(payload: dict) -> list[float]:
