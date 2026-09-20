@@ -37,78 +37,107 @@ dynamodb = boto3.resource("dynamodb", region_name=REGION)
 table = dynamodb.Table(DDB_TABLE)
 s3 = boto3.client("s3", region_name=REGION)
 
-def _extract_message_text(parsed: dict) -> tuple[str, str] | None:
-    """Return (kind, text) for a prompt or an agent response chunk, else None."""
-    method = parsed.get("method")
+# module-level state — assumes one in-flight session per connection at a time,
+# consistent with your current one-subprocess-per-connection architecture
+_response_buffers: dict[int, list[str]] = {}
+_response_sessions: dict[int, str] = {}
 
-    if method == "session/prompt":
-        prompt_blocks = parsed.get("params", {}).get("prompt", [])
-        texts = [block.get("text", "") for block in prompt_blocks if block.get("type") == "text"]
-        return ("prompt", "\n".join(texts)) if texts else None
 
-    if method == "session/update":
-        update = parsed.get("params", {}).get("update", {})
-        if update.get("sessionUpdate") == "agent_message_chunk":
-            content = update.get("content", {})
-            if content.get("type") == "text":
-                text = content.get("text", "")
-                return ("response_chunk", text) if text else None
+def _extract_prompt(parsed: dict) -> tuple[str, str] | None:
+    """Return (text, sessionId) for a session/prompt request."""
+    if parsed.get("method") != "session/prompt":
+        return None
+    params = parsed.get("params", {})
+    blocks = params.get("prompt", [])
+    texts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
+    text = "\n".join(texts)
+    return (text, params.get("sessionId")) if text else None
 
+
+def _extract_chunk(parsed: dict) -> tuple[str, str] | None:
+    """Return (text, sessionId) for one agent_message_chunk update."""
+    if parsed.get("method") != "session/update":
+        return None
+    params = parsed.get("params", {})
+    update = params.get("update", {})
+    if update.get("sessionUpdate") != "agent_message_chunk":
+        return None
+    content = update.get("content", {})
+    if content.get("type") != "text":
+        return None
+    text = content.get("text", "")
+    return (text, params.get("sessionId")) if text else None
+
+
+def _extract_final_result(parsed: dict) -> dict | None:
+    """Return the result dict if this message is the turn-ending response."""
+    result = parsed.get("result")
+    if isinstance(result, dict) and "stopReason" in result:
+        return result
     return None
 
-def _extract_images(obj, message_id: str, images: list) -> None:
-    """Recursively find image content blocks, collect their bytes for S3,
-    and replace the base64 payload in place with a reference."""
-    if isinstance(obj, dict):
-        if obj.get("type") == "image" and "data" in obj:
-            key = f"{message_id}/{uuid.uuid4()}.bin"
-            image_bytes = base64.b64decode(obj["data"])
-            images.append((key, image_bytes, obj.get("mimeType", "application/octet-stream")))
-            obj["data"] = f"s3://{S3_BUCKET}/{key}"
-        else:
-            for value in obj.values():
-                _extract_images(value, message_id, images)
-    elif isinstance(obj, list):
-        for item in obj:
-            _extract_images(item, message_id, images)
 
-def _store_message_sync(connection_id: int, direction: str, raw_message: str) -> None:
-    try:
-        parsed = json.loads(raw_message)
-    except json.JSONDecodeError:
-        return  # not JSON, nothing to store
-
-    prompt_text = _extract_message_text(parsed)
-
-    if prompt_text is None:
-        return  # not a prompt message, skip storing entirely
-
-    kind, text = prompt_text
-
+def _store_row_sync(connection_id: int, kind: str, text: str, session_id: str | None,
+                     stop_reason: str | None = None, usage: dict | None = None) -> None:
     message_id = str(uuid.uuid4())
     images: list = []
-    _extract_images(parsed, message_id, images)
+    if kind == "prompt":
+        # in case a prompt block ever contains an image, not just text
+        pass  # add image extraction here if/when your prompts carry images
 
-    for key, image_bytes, content_type in images:
-        s3.put_object(Bucket=S3_BUCKET, Key=key, Body=image_bytes, ContentType=content_type)
-
-    table.put_item(Item={
+    item = {
         "connectionId": connection_id,
         "messageId": message_id,
-        "direction": direction,
-        "kind": kind,  # "prompt" or "response_chunk"
+        "kind": kind,           # "prompt" or "response"
+        "sessionId": session_id,
+        "text": text,
         "timestamp": Decimal(str(time.time())),
-        "prompt": text,
-        "imageKeys": [key for key, _, _ in images],
-    })
+    }
+    if stop_reason is not None:
+        item["stopReason"] = stop_reason
+    if usage:
+        item["usage"] = {k: Decimal(str(v)) for k, v in usage.items()}
+
+    table.put_item(Item=item)
+
 
 async def record_message(connection_id: int, direction: str, raw_message: str) -> None:
     try:
-        await asyncio.to_thread(_store_message_sync, connection_id, direction, raw_message)
-    except Exception:
-        LOGGER.exception(
-            "Connection %s: failed to persist %s message", connection_id, direction
-        )
+        parsed = json.loads(raw_message)
+    except json.JSONDecodeError:
+        return
+
+    prompt = _extract_prompt(parsed)
+    if prompt is not None:
+        text, session_id = prompt
+        try:
+            await asyncio.to_thread(_store_row_sync, connection_id, "prompt", text, session_id)
+        except Exception:
+            LOGGER.exception("Connection %s: failed to persist prompt", connection_id)
+        return
+
+    chunk = _extract_chunk(parsed)
+    if chunk is not None:
+        text, session_id = chunk
+        _response_buffers.setdefault(connection_id, []).append(text)
+        _response_sessions[connection_id] = session_id
+        return
+
+    final = _extract_final_result(parsed)
+    if final is not None:
+        chunks = _response_buffers.pop(connection_id, [])
+        session_id = _response_sessions.pop(connection_id, None)
+        if not chunks:
+            return  # nothing buffered (e.g. a tool-call result with a stopReason-shaped result you don't expect)
+        full_text = "".join(chunks)
+        try:
+            await asyncio.to_thread(
+                _store_row_sync, connection_id, "response", full_text, session_id,
+                stop_reason=final.get("stopReason"), usage=final.get("usage"),
+            )
+        except Exception:
+            LOGGER.exception("Connection %s: failed to persist response", connection_id)
+        return
 
 
 async def relay(websocket: ServerConnection) -> None:
