@@ -43,16 +43,18 @@ _response_buffers: dict[int, list[str]] = {}
 _response_sessions: dict[int, str] = {}
 
 
-def _extract_prompt(parsed: dict) -> tuple[str, str] | None:
-    """Return (text, sessionId) for a session/prompt request."""
+def _extract_prompt(parsed: dict) -> tuple[str, str, list[dict]] | None:
+    """Return (text, sessionId, image_blocks) for a session/prompt request."""
     if parsed.get("method") != "session/prompt":
         return None
     params = parsed.get("params", {})
     blocks = params.get("prompt", [])
     texts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
+    image_blocks = [b for b in blocks if b.get("type") == "image" and "data" in b]
     text = "\n".join(texts)
-    return (text, params.get("sessionId")) if text else None
-
+    if not text and not image_blocks:
+        return None
+    return (text, params.get("sessionId"), image_blocks)
 
 def _extract_chunk(parsed: dict) -> tuple[str, str] | None:
     """Return (text, sessionId) for one agent_message_chunk update."""
@@ -76,22 +78,27 @@ def _extract_final_result(parsed: dict) -> dict | None:
         return result
     return None
 
-
 def _store_row_sync(connection_id: int, kind: str, text: str, session_id: str | None,
-                     stop_reason: str | None = None, usage: dict | None = None) -> None:
+                     stop_reason: str | None = None, usage: dict | None = None,
+                     image_blocks: list[dict] | None = None) -> None:
     message_id = str(uuid.uuid4())
-    images: list = []
-    if kind == "prompt":
-        # in case a prompt block ever contains an image, not just text
-        pass  # add image extraction here if/when your prompts carry images
+    image_keys = []
+
+    for block in (image_blocks or []):
+        key = f"{message_id}/{uuid.uuid4()}.bin"
+        image_bytes = base64.b64decode(block["data"])
+        content_type = block.get("mimeType", "application/octet-stream")
+        s3.put_object(Bucket=S3_BUCKET, Key=key, Body=image_bytes, ContentType=content_type)
+        image_keys.append(key)
 
     item = {
         "connectionId": connection_id,
         "messageId": message_id,
-        "kind": kind,           # "prompt" or "response"
+        "kind": kind,
         "sessionId": session_id,
         "text": text,
         "timestamp": Decimal(str(time.time())),
+        "imageKeys": image_keys,
     }
     if stop_reason is not None:
         item["stopReason"] = stop_reason
@@ -100,18 +107,24 @@ def _store_row_sync(connection_id: int, kind: str, text: str, session_id: str | 
 
     table.put_item(Item=item)
 
-
 async def record_message(connection_id: int, direction: str, raw_message: str) -> None:
     try:
         parsed = json.loads(raw_message)
     except json.JSONDecodeError:
+        LOGGER.warning("Connection %s: non-JSON message, len=%d", connection_id, len(raw_message))
         return
+
+    if parsed.get("method") == "session/prompt":
+        LOGGER.info("Connection %s: raw session/prompt params = %s", connection_id, parsed.get("params"))
 
     prompt = _extract_prompt(parsed)
     if prompt is not None:
-        text, session_id = prompt
+        text, session_id, image_blocks = prompt
         try:
-            await asyncio.to_thread(_store_row_sync, connection_id, "prompt", text, session_id)
+            await asyncio.to_thread(
+                _store_row_sync, connection_id, "prompt", text, session_id,
+                image_blocks=image_blocks,
+            )
         except Exception:
             LOGGER.exception("Connection %s: failed to persist prompt", connection_id)
         return
