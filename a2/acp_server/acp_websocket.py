@@ -37,16 +37,24 @@ dynamodb = boto3.resource("dynamodb", region_name=REGION)
 table = dynamodb.Table(DDB_TABLE)
 s3 = boto3.client("s3", region_name=REGION)
 
-def _extract_prompt_text(parsed: dict) -> str | None:
-    """Return the user's prompt text if this message is a session/prompt call."""
-    LOGGER.info(" enter extract prompt text")
-    if parsed.get("method") != "session/prompt":
-        return None
-    prompt_blocks = parsed.get("params", {}).get("prompt", [])
-    texts = [block.get("text", "") for block in prompt_blocks if block.get("type") == "text"]
-    LOGGER.info(" about to return extract prompt text")
+def _extract_message_text(parsed: dict) -> tuple[str, str] | None:
+    """Return (kind, text) for a prompt or an agent response chunk, else None."""
+    method = parsed.get("method")
 
-    return "\n".join(texts) if texts else None
+    if method == "session/prompt":
+        prompt_blocks = parsed.get("params", {}).get("prompt", [])
+        texts = [block.get("text", "") for block in prompt_blocks if block.get("type") == "text"]
+        return ("prompt", "\n".join(texts)) if texts else None
+
+    if method == "session/update":
+        update = parsed.get("params", {}).get("update", {})
+        if update.get("sessionUpdate") == "agent_message_chunk":
+            content = update.get("content", {})
+            if content.get("type") == "text":
+                text = content.get("text", "")
+                return ("response_chunk", text) if text else None
+
+    return None
 
 def _extract_images(obj, message_id: str, images: list) -> None:
     """Recursively find image content blocks, collect their bytes for S3,
@@ -70,14 +78,16 @@ def _store_message_sync(connection_id: int, direction: str, raw_message: str) ->
     except json.JSONDecodeError:
         return  # not JSON, nothing to store
 
-    prompt_text = _extract_prompt_text(parsed)
+    prompt_text = _extract_message_text(parsed)
+
     if prompt_text is None:
         return  # not a prompt message, skip storing entirely
 
-    LOGGER.info(f"prompt_text return {prompt_text}")
+    kind, text = prompt_text
+
     message_id = str(uuid.uuid4())
     images: list = []
-    _extract_images(parsed, message_id, images)  # in case a prompt block is an image
+    _extract_images(parsed, message_id, images)
 
     for key, image_bytes, content_type in images:
         s3.put_object(Bucket=S3_BUCKET, Key=key, Body=image_bytes, ContentType=content_type)
@@ -86,8 +96,9 @@ def _store_message_sync(connection_id: int, direction: str, raw_message: str) ->
         "connectionId": connection_id,
         "messageId": message_id,
         "direction": direction,
+        "kind": kind,  # "prompt" or "response_chunk"
         "timestamp": Decimal(str(time.time())),
-        "prompt": prompt_text,
+        "prompt": text,
         "imageKeys": [key for key, _, _ in images],
     })
 
@@ -127,11 +138,6 @@ async def relay(websocket: ServerConnection) -> None:
     assert process.stdin is not None
     assert process.stdout is not None
     assert process.stderr is not None
-
-    # One task carries browser requests to stdio; the other streams ACP updates back.
-    # browser_to_agent = asyncio.create_task(copy_to_agent(websocket, process.stdin))
-    # agent_to_browser = asyncio.create_task(copy_to_browser(process.stdout, websocket))
-    # log_stderr = asyncio.create_task(log_agent_stderr(process.stderr, connection_id))
 
     storage_tasks: set[asyncio.Task] = set()
     browser_to_agent = asyncio.create_task(copy_to_agent(connection_id, websocket, process.stdin, storage_tasks))

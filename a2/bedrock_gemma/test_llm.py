@@ -48,35 +48,9 @@ agent = Agent(
         "use check_and_store to find the three most similar issues to an issue, and store this to the s3 vectors. the return object will be used to write an appropriate comment to this new issue."
         "use write_comment to write a comment to an issue."
         "please be nice to the chatter. if you require more clarification about your tasks, you must ask for more clarification."
-        # "If a user gives you a prompt about a pull request or issue, please use process_pull_request to summarise it, provide the user who filed a pull request and its current state."
-        # "To comment on an issue, use check_and_store to find similar issues and store new ones in S3, then call write_comment to write to the repo. "
     ),
     toolsets=[mcp_toolset],
 )
 
-
-
-async def chat() -> None:
-    """Keep one MCP connection and one conversation history for the chat session."""
-    message_history = None
-    print("Ask a question, or type 'quit' to exit.")
-    print("Try: Convert 20 degrees Celsius to Fahrenheit.")
-
-    # Entering the agent starts the MCP stdio server and discovers its tools.
-    async with agent:
-        while True:
-            prompt = input("You: ").strip()
-            if prompt.lower() in {"quit", "exit"}:
-                break
-            if not prompt:
-                continue
-
-            # Include earlier messages so the agent can follow the conversation.
-            result = await agent.run(prompt, message_history=message_history)
-            message_history = result.all_messages()
-            print(f"Assistant: {result.output}")
-
-
 if __name__ == "__main__":
     run_acp_stdio_sync(agent, name = "CAB432 A2 TEST MCP AGENT", version = "1.0.0")
-    #asyncio.run(chat())
