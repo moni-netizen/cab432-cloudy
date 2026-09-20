@@ -37,7 +37,7 @@ MCP_SERVER = Path(__file__).parents[1] / "mcp_server" / "github_access.py"
 MCP_VENV_PYTHON = Path(__file__).parents[1] / "mcp_server" / "venv" / "Scripts" / "python.exe"  # Windows
 
 model = BedrockConverseModel(MODEL_ID, provider=BedrockProvider(region_name=REGION))
-mcp_toolset = MCPToolset(StdioTransport(command=str(MCP_VENV_PYTHON), args=[str(MCP_SERVER)]))
+mcp_toolset = MCPToolset(StdioTransport(command=str(MCP_VENV_PYTHON), args=[ "-u", str(MCP_SERVER)]), init_timeout=30.0)
 
 agent = Agent(
     model,

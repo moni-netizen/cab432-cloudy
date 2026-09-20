@@ -39,10 +39,13 @@ s3 = boto3.client("s3", region_name=REGION)
 
 def _extract_prompt_text(parsed: dict) -> str | None:
     """Return the user's prompt text if this message is a session/prompt call."""
+    LOGGER.info(" enter extract prompt text")
     if parsed.get("method") != "session/prompt":
         return None
     prompt_blocks = parsed.get("params", {}).get("prompt", [])
     texts = [block.get("text", "") for block in prompt_blocks if block.get("type") == "text"]
+    LOGGER.info(" about to return extract prompt text")
+
     return "\n".join(texts) if texts else None
 
 def _extract_images(obj, message_id: str, images: list) -> None:
@@ -71,6 +74,7 @@ def _store_message_sync(connection_id: int, direction: str, raw_message: str) ->
     if prompt_text is None:
         return  # not a prompt message, skip storing entirely
 
+    LOGGER.info(f"prompt_text return {prompt_text}")
     message_id = str(uuid.uuid4())
     images: list = []
     _extract_images(parsed, message_id, images)  # in case a prompt block is an image
