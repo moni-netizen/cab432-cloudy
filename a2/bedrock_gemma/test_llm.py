@@ -27,9 +27,8 @@ from pydantic_ai_harness.experimental import HarnessExperimentalWarning
 warnings.filterwarnings("ignore", category=HarnessExperimentalWarning)
 from pydantic_ai_harness.experimental.acp import run_acp_stdio_sync
 
-
 REGION = os.getenv("AWS_REGION", "ap-southeast-2")
-MODEL_ID = "nvidia.nemotron-super-3-120b"
+MODEL_ID = "google.gemma-3-12b-it"
 
 # for now, this is my git access file :(
 # change later to the actual MCP server in the cloud

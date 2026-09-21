@@ -27,11 +27,14 @@ AGENT_PYTHON = Path(__file__).parents[1] / "bedrock_gemma" / "venv" / "Scripts" 
 LOGGER = logging.getLogger(__name__)
 CONNECTION_IDS = itertools.count(1)
 
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
+MAX_ACP_MESSAGE_BYTES = 32 * 1024 * 1024
+SUBPROCESS_LINE_LIMIT = 40 * 1024 * 1024
+
+
 DDB_TABLE = "n12023868-message-history"
 S3_BUCKET = "n12023868-images-history"
 REGION = "ap-southeast-2"
-
-
 
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
 table = dynamodb.Table(DDB_TABLE)
@@ -41,7 +44,6 @@ s3 = boto3.client("s3", region_name=REGION)
 # consistent with your current one-subprocess-per-connection architecture
 _response_buffers: dict[int, list[str]] = {}
 _response_sessions: dict[int, str] = {}
-
 
 def _extract_prompt(parsed: dict) -> tuple[str, str, list[dict]] | None:
     """Return (text, sessionId, image_blocks) for a session/prompt request."""
@@ -85,9 +87,10 @@ def _store_row_sync(connection_id: int, kind: str, text: str, session_id: str | 
     image_keys = []
 
     for block in (image_blocks or []):
-        key = f"{message_id}/{uuid.uuid4()}.bin"
+        
         image_bytes = base64.b64decode(block["data"])
         content_type = block.get("mimeType", "application/octet-stream")
+        key = f"{message_id}/{uuid.uuid4()}.{content_type.split("/")[1]}"
         s3.put_object(Bucket=S3_BUCKET, Key=key, Body=image_bytes, ContentType=content_type)
         image_keys.append(key)
 
@@ -170,7 +173,8 @@ async def relay(websocket: ServerConnection) -> None:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=AGENT_SCRIPT.parent,
-        )
+            limit=SUBPROCESS_LINE_LIMIT,
+)
     except OSError:
         LOGGER.exception("Connection %s: could not start the ACP agent", connection_id)
         await websocket.close(code=1011, reason="Could not start the ACP agent; check the server log")
@@ -300,7 +304,14 @@ async def main() -> None:
     args = parser.parse_args()
     if args.verbose:
         logging.getLogger().setLevel(logging.INFO)
-    async with serve(relay, args.host, args.port):
+    async with serve(
+        relay,
+        args.host,
+        args.port,
+        max_size=MAX_ACP_MESSAGE_BYTES,
+        max_queue=8,
+        compression=None,
+    ):
         print(f"ACP server listening at ws://{args.host}:{args.port}{PATH}")
         await asyncio.Future()
 #endregion websocket-server
