@@ -7,7 +7,7 @@ import json
 from botocore.exceptions import ClientError
 
 # my super scummy PAT storage (sorry)
-def get_secret():
+def get_secret() -> dict:
 
     secret_name = "n12023868-secrets"
     region_name = "ap-southeast-2"
@@ -20,13 +20,13 @@ def get_secret():
     )
 
     try:
-        get_secret_value_response = client.get_secret_value(
+        response = client.get_secret_value(
             SecretId=secret_name
         )
     except ClientError as e:
         raise e
 
-    secret = get_secret_value_response['SecretString']
+    return json.loads(response['SecretString'])
 
 #region github-configuration
 token = get_secret()["GITHUB_PAT"]

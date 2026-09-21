@@ -1,10 +1,10 @@
 FROM node:22-alpine AS build
 
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY acp_client/package.json acp_client/package-lock.json ./
 RUN npm ci
 
-COPY . .
+COPY acp_client/ .
 RUN npm run build
 
 FROM nginx:1.29-alpine
