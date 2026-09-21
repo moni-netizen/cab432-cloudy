@@ -23,12 +23,72 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.providers.bedrock import BedrockProvider
 from pydantic_ai_harness.experimental import HarnessExperimentalWarning
 
+import dataclasses
+from pydantic_ai.capabilities.hooks import Hooks
+from pydantic_ai.messages import ModelRequest, UserPromptPart, BinaryContent
+from pydantic_ai.models import ModelRequestContext
+from pydantic_ai import RunContext
+
 # get rid of that dumb dumb logo
 warnings.filterwarnings("ignore", category=HarnessExperimentalWarning)
 from pydantic_ai_harness.experimental.acp import run_acp_stdio_sync
 
 REGION = os.getenv("AWS_REGION", "ap-southeast-2")
-MODEL_ID = "google.gemma-3-12b-it"
+VISION_MODEL_ID = "google.gemma-3-12b-it"
+vision_model = BedrockConverseModel(VISION_MODEL_ID, provider=BedrockProvider(region_name=REGION))
+
+caption_agent = Agent(
+    vision_model,
+    instructions="Describe this image in exactly 1-2 concise, factual sentences. No preamble, no extra commentary.",
+)
+
+async def _caption_image(image: BinaryContent) -> str:
+    result = await caption_agent.run([image])
+    return result.output
+
+
+async def caption_images_before_request(
+    ctx: RunContext[None], request_context: ModelRequestContext
+) -> ModelRequestContext:
+    """Runs before every call to the main (Nemotron) model. Detects any image
+    content in the outgoing messages, replaces it with a short text caption
+    from the Gemma vision model, so Nemotron only ever sees text."""
+    new_messages = []
+    context_changed = False
+
+    for message in request_context.messages:
+        if not isinstance(message, ModelRequest):
+            new_messages.append(message)
+            continue
+
+        new_parts = []
+        message_changed = False
+        for part in message.parts:
+            if isinstance(part, UserPromptPart) and isinstance(part.content, list):
+                new_content = []
+                for item in part.content:
+                    if isinstance(item, BinaryContent) and item.media_type.startswith("image/"):
+                        caption = await _caption_image(item)
+                        new_content.append(f"[Attached image — description: {caption}]")
+                        message_changed = True
+                    else:
+                        new_content.append(item)
+                new_parts.append(dataclasses.replace(part, content=new_content) if message_changed else part)
+            else:
+                new_parts.append(part)
+
+        if message_changed:
+            new_messages.append(dataclasses.replace(message, parts=new_parts))
+            context_changed = True
+        else:
+            new_messages.append(message)
+
+    return dataclasses.replace(request_context, messages=new_messages) if context_changed else request_context
+
+
+hooks = Hooks(before_model_request=caption_images_before_request)
+
+MODEL_ID = "nvidia.nemotron-super-3-120b"
 
 # for now, this is my git access file :(
 # change later to the actual MCP server in the cloud
@@ -49,6 +109,7 @@ agent = Agent(
         "please be nice to the chatter. if you require more clarification about your tasks, you must ask for more clarification."
     ),
     toolsets=[mcp_toolset],
+    capabilities=[hooks],
 )
 
 if __name__ == "__main__":
