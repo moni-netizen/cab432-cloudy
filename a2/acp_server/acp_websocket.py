@@ -19,11 +19,12 @@ import json
 from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"
 PORT = 7331
 PATH = "/acp"
 AGENT_SCRIPT = Path(__file__).parents[1] / "bedrock_gemma" / "test_llm.py"
-AGENT_PYTHON = Path(__file__).parents[1] / "bedrock_gemma" / "venv" / "Scripts" / "python.exe"  # Windows
+AGENT_PYTHON = sys.executable
+
 LOGGER = logging.getLogger(__name__)
 CONNECTION_IDS = itertools.count(1)
 
@@ -91,7 +92,9 @@ def _store_row_sync(connection_id: int, kind: str, text: str, session_id: str | 
         image_bytes = base64.b64decode(block["data"])
         content_type = block.get("mimeType", "application/octet-stream")
         key = f"{message_id}/{uuid.uuid4()}.{content_type.split("/")[1]}"
-        s3.put_object(Bucket=S3_BUCKET, Key=key, Body=image_bytes, ContentType=content_type)
+        response = s3.put_object(Bucket=S3_BUCKET, Key=key, Body=image_bytes, ContentType=content_type)
+        if response:
+            print(f"response: {response['ResponseMetadata']['HTTPStatusCode']}")
         image_keys.append(key)
 
     item = {

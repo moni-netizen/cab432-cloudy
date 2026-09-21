@@ -4,15 +4,35 @@ from github import Auth, Github
 from fastmcp import FastMCP
 import boto3
 import json
+from botocore.exceptions import ClientError
 
 # my super scummy PAT storage (sorry)
-token = "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"
+def get_secret():
 
-#github stuff
+    secret_name = "n12023868-secrets"
+    region_name = "ap-southeast-2"
+
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        get_secret_value_response = client.get_secret_value(
+            SecretId=secret_name
+        )
+    except ClientError as e:
+        raise e
+
+    secret = get_secret_value_response['SecretString']
 
 #region github-configuration
+token = get_secret()["GITHUB_PAT"]
 auth = Auth.Token(token)
 g = Github(auth = auth)
+
 repo_name = "moni-netizen/gcsim-test"
 repo = g.get_repo(repo_name)
 #endregion github-configuration
@@ -174,5 +194,5 @@ def return_bodies(items: list) -> list:
 
 
 if __name__ == "__main__":
-    mcp.run(show_banner = False)
+   mcp.run(show_banner=False, transport="streamable-http", host="0.0.0.0", port=8000)
 

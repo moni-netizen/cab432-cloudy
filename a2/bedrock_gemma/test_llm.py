@@ -16,7 +16,7 @@ from pathlib import Path
 
 import asyncio
 
-from fastmcp.client.transports import StdioTransport
+from fastmcp.client.transports import StreamableHttpTransport
 from pydantic_ai import Agent, BinaryContent
 from pydantic_ai.models.bedrock import BedrockConverseModel
 from pydantic_ai.mcp import MCPToolset
@@ -90,13 +90,10 @@ hooks = Hooks(before_model_request=caption_images_before_request)
 
 MODEL_ID = "nvidia.nemotron-super-3-120b"
 
-# for now, this is my git access file :(
-# change later to the actual MCP server in the cloud
-MCP_SERVER = Path(__file__).parents[1] / "mcp_server" / "github_access.py"
-MCP_VENV_PYTHON = Path(__file__).parents[1] / "mcp_server" / "venv" / "Scripts" / "python.exe"  # Windows
-
 model = BedrockConverseModel(MODEL_ID, provider=BedrockProvider(region_name=REGION))
-mcp_toolset = MCPToolset(StdioTransport(command=str(MCP_VENV_PYTHON), args=[ "-u", str(MCP_SERVER)]), init_timeout=30.0)
+
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
+mcp_toolset = MCPToolset(StreamableHttpTransport(MCP_SERVER_URL), init_timeout=30.0)
 
 agent = Agent(
     model,
