@@ -120,17 +120,20 @@ def embed_issue(id: int) -> tuple[dict, list[float]]:
        will need to be changed at some point to... something related to the issue"""
 
     # get the issue info
-    issue = repo.get_issue(id) 
+    try:
+        issue = repo.get_issue(id) 
 
-    issue_info = {
-                    "issueNo": id,
-                    "title": issue.title,
-                    "url": issue.html_url
-                }
+        issue_info = {
+                        "issueNo": id,
+                        "title": issue.title,
+                        "url": issue.html_url
+                    }
 
-    return issue_info, invoke_titan(
-        {"inputText": f"{issue.title}-{issue.body}", "embeddingConfig": {"outputEmbeddingLength": DIMENSION}},
-    )
+        return issue_info, invoke_titan(
+            {"inputText": f"{issue.title}-{issue.body}", "embeddingConfig": {"outputEmbeddingLength": DIMENSION}},
+        )
+    except:
+        return{"statusCode":400, "body": "issue not found"}, None
 
 def store_issue(issue_info: dict, embedding: list[float]) -> None:
     """Store a message into Amazon S3 vectors. This will submit images of pull 

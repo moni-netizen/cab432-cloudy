@@ -1,0 +1,25 @@
+services:
+  mcp-server:
+    build:
+      context: ./mcp_server
+    # no ports: published to host — only agent-app needs to reach it, internally
+
+  agent-app:
+    build:
+      context: .
+      dockerfile: Dockerfile 
+    ports:
+      - "7331:7331"
+    environment:
+      - MCP_SERVER_URL=http://mcp-server:8000/mcp
+      - AWS_REGION=ap-southeast-2
+    volumes:
+      - ~/.aws:/home/appuser/.aws:ro
+    depends_on:
+      - mcp-server
+
+  frontend:
+    build:
+      context: ./acp_client
+    ports:
+      - "80:80"
