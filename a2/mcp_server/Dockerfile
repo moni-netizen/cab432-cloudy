@@ -4,10 +4,10 @@ WORKDIR /app
 
 RUN useradd --create-home --shell /bin/bash appuser
 
-COPY mcp_server/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY mcp_server/github_access.py .
+COPY github_access.py .
 
 USER appuser
 
