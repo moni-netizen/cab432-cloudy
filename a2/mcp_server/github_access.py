@@ -5,6 +5,8 @@ from fastmcp import FastMCP
 import boto3
 import json
 from botocore.exceptions import ClientError
+from mcp.server.auth.provider import AccessToken, TokenVerifier
+from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
 
 # my super scummy PAT storage (sorry)
 def get_secret() -> dict:
@@ -29,7 +31,22 @@ def get_secret() -> dict:
     return json.loads(response['SecretString'])
 
 #region github-configuration
-token = get_secret()["GITHUB_PAT"]
+secrets = get_secret()
+
+MCP_SHARED_TOKEN = secrets["MCP_SHARED_TOKEN"]
+
+verifier = StaticTokenVerifier(
+    tokens={
+        MCP_SHARED_TOKEN: {
+            "client_id": "acp-agent",
+            "scopes": ["mcp"],
+        },
+    },
+)
+mcp = FastMCP("CAB432 Assessment 2: Track B",
+ auth=verifier)
+
+token = secrets["GITHUB_PAT"]
 auth = Auth.Token(token)
 g = Github(auth = auth)
 
@@ -53,7 +70,6 @@ bedrock = boto3.client("bedrock-runtime", region_name = REGION)
 s3vectors = boto3.client("s3vectors", region_name = REGION)
 #endregion s3_vectors & bedrock
 
-mcp = FastMCP("CAB432 Assessment 2: Track B")
 #region process-pr
 @mcp.tool
 def process_pull_request(pr_number: int) -> dict:

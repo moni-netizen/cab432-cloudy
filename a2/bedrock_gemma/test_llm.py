@@ -32,6 +32,34 @@ from pydantic_ai import RunContext
 # get rid of that dumb dumb logo
 warnings.filterwarnings("ignore", category=HarnessExperimentalWarning)
 from pydantic_ai_harness.experimental.acp import run_acp_stdio_sync
+from fastmcp.client.transports import StreamableHttpTransport
+import boto3
+
+import json
+
+def get_secret() -> dict:
+
+    secret_name = "n12023868-secrets"
+    region_name = "ap-southeast-2"
+
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        response = client.get_secret_value(
+            SecretId=secret_name
+        )
+    except ClientError as e:
+        raise e
+
+    return json.loads(response['SecretString'])
+
+secrets = get_secret()
+MCP_SHARED_TOKEN = secrets["MCP_SHARED_TOKEN"]
 
 REGION = os.getenv("AWS_REGION", "ap-southeast-2")
 VISION_MODEL_ID = "google.gemma-3-12b-it"
@@ -93,7 +121,8 @@ MODEL_ID = "nvidia.nemotron-super-3-120b"
 model = BedrockConverseModel(MODEL_ID, provider=BedrockProvider(region_name=REGION))
 
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
-mcp_toolset = MCPToolset(StreamableHttpTransport(MCP_SERVER_URL), init_timeout=30.0)
+mcp_toolset = MCPToolset(StreamableHttpTransport(MCP_SERVER_URL,
+auth = MCP_SHARED_TOKEN), init_timeout=30.0)
 
 agent = Agent(
     model,
