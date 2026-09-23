@@ -2,7 +2,10 @@ services:
   mcp-server:
     build:
       context: ./mcp_server
-    # no ports: published to host — only agent-app needs to reach it, internally
+    volumes:
+     - ${USERPROFILE}\.aws:/home/appuser/.aws:ro 
+    networks:
+     - internal
 
   agent-app:
     build:
@@ -14,12 +17,21 @@ services:
       - MCP_SERVER_URL=http://mcp-server:8000/mcp
       - AWS_REGION=ap-southeast-2
     volumes:
-      - ~/.aws:/home/appuser/.aws:ro
+      - ${USERPROFILE}\.aws:/home/appuser/.aws:ro
     depends_on:
       - mcp-server
+    networks:
+      - internal
+      - public
 
   frontend:
     build:
       context: ./acp_client
     ports:
       - "80:80"
+    networks:
+      - public
+
+networks:
+  internal:
+  public:
