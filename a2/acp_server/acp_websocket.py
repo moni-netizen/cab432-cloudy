@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import http
 import itertools
 import logging
 import sys
@@ -15,9 +16,12 @@ from decimal import Decimal
 
 import boto3
 import json
-
+from botocore.exceptions import ClientError
 from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
+from websockets.asyncio.server import serve
+
+logging.basicConfig(level = logging.INFO)
 
 HOST = "0.0.0.0"
 PORT = 7331
@@ -293,6 +297,17 @@ async def stop_agent(process: asyncio.subprocess.Process) -> None:
     process.kill()
     await process.wait()
 
+async def health_check_handler(connection, request):
+    """
+    Intercepts the HTTP handshake. If the path is /healthz, 
+    it returns an HTTP 200 OK immediately without upgrading to WebSockets.
+    """
+    if request.path == "/health":
+        return connection.respond(http.HTTPStatus.OK, "OK\n")
+    
+    # Returning None tells the library to proceed with the normal WebSocket handshake
+    return None
+
 
 #region websocket-server
 async def main() -> None:
@@ -311,6 +326,7 @@ async def main() -> None:
         relay,
         args.host,
         args.port,
+        process_request = health_check_handler,
         max_size=MAX_ACP_MESSAGE_BYTES,
         max_queue=8,
         compression=None,
