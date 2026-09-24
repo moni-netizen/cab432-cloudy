@@ -24,7 +24,7 @@ from websockets.asyncio.server import serve
 logging.basicConfig(level = logging.INFO)
 
 HOST = "0.0.0.0"
-PORT = 7331
+PORT = 3000
 PATH = "/acp"
 AGENT_SCRIPT = Path(__file__).parents[1] / "bedrock_gemma" / "test_llm.py"
 AGENT_PYTHON = sys.executable
