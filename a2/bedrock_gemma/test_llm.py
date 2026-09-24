@@ -120,7 +120,7 @@ MODEL_ID = "nvidia.nemotron-super-3-120b"
 
 model = BedrockConverseModel(MODEL_ID, provider=BedrockProvider(region_name=REGION))
 
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
+MCP_SERVER_URL = "http://172.31.71.178:8000/mcp"
 mcp_toolset = MCPToolset(StreamableHttpTransport(MCP_SERVER_URL,
 auth = MCP_SHARED_TOKEN), init_timeout=30.0)
 
