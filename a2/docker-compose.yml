@@ -12,7 +12,7 @@ services:
       context: .
       dockerfile: Dockerfile 
     ports:
-      - "7331:7331"
+      - "3000:3000"
     environment:
       - MCP_SERVER_URL=http://mcp-server:8000/mcp
       - AWS_REGION=ap-southeast-2
