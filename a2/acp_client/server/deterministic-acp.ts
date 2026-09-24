@@ -5,7 +5,7 @@ import * as acp from "@agentclientprotocol/sdk";
 import { createNodeHttpHandler, createNodeWebSocketUpgradeHandler } from "@agentclientprotocol/sdk/experimental/node";
 import { AcpServer } from "@agentclientprotocol/sdk/experimental/server";
 
-const DEFAULT_PORT = 7331;
+const DEFAULT_PORT = 3000;
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_IMAGE_PATH = "/deterministic-image.svg";
 
