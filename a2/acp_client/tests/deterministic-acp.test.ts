@@ -20,7 +20,7 @@ describe("deterministic ACP agent", () => {
   });
 
   it("returns deterministic text and native image content", async () => {
-    const agent = new DeterministicAgent("http://127.0.0.1:7331/deterministic-image.svg", 0);
+    const agent = new DeterministicAgent("http://127.0.0.1:3000/deterministic-image.svg", 0);
     const session = agent.newSession({ cwd: "/", mcpServers: [] });
     const updates: acp.SessionNotification[] = [];
     const context = {
@@ -54,7 +54,7 @@ describe("deterministic ACP agent", () => {
   });
 
   it("acknowledges and echoes an uploaded image", async () => {
-    const agent = new DeterministicAgent("http://127.0.0.1:7331/deterministic-image.svg", 0);
+    const agent = new DeterministicAgent("http://127.0.0.1:3000/deterministic-image.svg", 0);
     const session = agent.newSession({ cwd: "/", mcpServers: [] });
     const updates: acp.SessionNotification[] = [];
     const context = {
