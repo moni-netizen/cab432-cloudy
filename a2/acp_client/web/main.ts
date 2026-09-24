@@ -8,7 +8,7 @@ import { fileToImagePart, type ImagePart } from "./image";
 // STUDENT CONFIGURATION: set this to the ACP agent's WebSocket endpoint.
 // Use wss:// when the web client is served over HTTPS.
 // -----------------------------------------------------------------------------
-const ACP_WEBSOCKET_ENDPOINT = "ws://127.0.0.1:7331/acp";
+const ACP_WEBSOCKET_ENDPOINT = "ws://n12023868-a2-balancer-247099787.ap-southeast-2.elb.amazonaws.com:3000/acp";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
