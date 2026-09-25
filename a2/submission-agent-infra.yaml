@@ -1,3 +1,4 @@
+cloudInfrastructure:
   - type: Bedrock model
     arn: google.gemma-3-12b-it
     description: The vision model used to process and describe image inputs from the user. 
@@ -19,7 +20,7 @@
     description: The ARN to the task definition that manages the MCP server. Guys please idk...
 
   - type: SQS queue
-    arn: <arn>
+    arn: arn:aws:sqs:ap-southeast-2:901444280953:n12023868-issue-triage
     description: For each new issue, Lister sends a message to SQS. These messages will invoke Executor lambda for writing comments
 
   - type: EventBridge rule
@@ -43,7 +44,7 @@
     description: Lister Lambda function. Determines how many new issues the repo needs to process.
 
     type: Lambda function
-    arn: <arn>
+    arn: arn:aws:lambda:ap-southeast-2:901444280953:function:n12023868-executive-lambda
     description: Executor Lambda. After receiving a message from SQS it will contact the agent and MCP server to find similar issues and write a comment to the issue 
 
 metaData:
