@@ -7,9 +7,11 @@ import itertools
 import logging
 import sys
 from aiohttp import web
-import test_llm
 from contextlib import suppress
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parents[1] / "bedrock_gemma"))
+import test_llm
 
 import base64
 import time
