@@ -12,7 +12,7 @@ COPY bedrock_gemma/ ./bedrock_gemma/
 
 USER appuser
 
-EXPOSE 7331
+EXPOSE 3000 8080
 
 WORKDIR /app/acp_server
 CMD ["python", "-u", "acp_websocket.py", "--host", "0.0.0.0", "--verbose"]

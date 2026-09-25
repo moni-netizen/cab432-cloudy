@@ -6,6 +6,8 @@ import http
 import itertools
 import logging
 import sys
+from aiohttp import web
+import test_llm
 from contextlib import suppress
 from pathlib import Path
 
@@ -19,7 +21,6 @@ import json
 from botocore.exceptions import ClientError
 from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
-from websockets.asyncio.server import serve
 
 logging.basicConfig(level = logging.INFO)
 
@@ -164,7 +165,7 @@ async def record_message(connection_id: int, direction: str, raw_message: str) -
 
 
 async def relay(websocket: ServerConnection) -> None:
-    """Run one stdio ACP agent and relay this browser connection to it."""
+    """Run one ACP agent and relay this browser connection to it."""
     if websocket.request.path != PATH:
         LOGGER.warning("Rejected WebSocket connection to %s", websocket.request.path)
         await websocket.close(code=1008, reason="Use the /acp WebSocket endpoint")
@@ -308,6 +309,34 @@ async def health_check_handler(connection, request):
     # Returning None tells the library to proceed with the normal WebSocket handshake
     return None
 
+# configuring my schedule receiver server
+TRIGGER_PORT = 8080
+async def handle_trigger_comment(request: web.Request) -> web.Response:
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header != f"Bearer {test_llm.MCP_SHARED_TOKEN}":
+        return web.json_response({"error": "unauthorized"}, status=401)
+
+    try:
+        body = await request.json()
+        issue_id = body["issue_id"]
+    except (ValueError, KeyError):
+        return web.json_response({"error": 'expected {"issue_id": <int>}'}, status=400)
+
+    async with test_llm.agent:
+        result = await test_llm.agent.run(
+            f"A new issue #{issue_id} was filed. Find similar issues and write an appropriate comment on it, ensuring you link these three issues for the user to explore."
+        )
+
+    return web.json_response({"status": "ok", "issue_id": issue_id, "summary": result.output})
+
+async def run_http_server(host: str) -> None:
+    app = web.Application()
+    app.router.add_post("/trigger-comment", handle_trigger_comment)
+    app.router.add_get("/healthz", lambda r: web.Response(text="OK\n"))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host, TRIGGER_PORT)
+    await site.start()
 
 #region websocket-server
 async def main() -> None:
@@ -331,6 +360,7 @@ async def main() -> None:
         max_queue=8,
         compression=None,
     ):
+        await run_http_server(args.host)
         print(f"ACP server listening at ws://{args.host}:{args.port}{PATH}")
         await asyncio.Future()
 #endregion websocket-server

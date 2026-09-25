@@ -24,7 +24,6 @@ from pathlib import Path
 
 import argparse
 import asyncio
-from aiohttp import web
 
 from fastmcp.client.transports import StreamableHttpTransport
 from pydantic_ai import Agent, BinaryContent
@@ -147,50 +146,12 @@ agent = Agent(
         "You are a manager tasked with triaging issues and pull requests for the Github Repo."
         "Help users manage this repository, be ready to communicate clearly and respond when they say hello."
         "use process_pull_request to process pull requests by id."
-        "use check_and_store to find the three most similar issues to an issue, and store this to the s3 vectors. you are to list the similarities between your issue and the vector results, but do not make a comment, just respond to the chat."
+        "use check_and_store to find the three most similar issues to an issue, and store this to the s3 vectors. you are to list the similarities between your issue and the vector results, but do not make a comment, just respond to the request."
         "please be nice to the chatter. if you require more clarification about your tasks, you must ask for more clarification."
     ),
     toolsets=[mcp_toolset],
     capabilities=[hooks],
 )
 
-# configuring my schedule receiver server
-TRIGGER_PORT = 8080
-
-async def handle_trigger_comment(request: web.Request) -> web.Response:
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header != f"Bearer {MCP_SHARED_TOKEN}":
-        return web.json_response({"error": "unauthorized"}, status=401)
-
-    try:
-        body = await request.json()
-        issue_id = body["issue_id"]
-    except (ValueError, KeyError):
-        return web.json_response({"error": 'expected {"issue_id": <int>}'}, status=400)
-
-    async with agent:
-        result = await agent.run(
-            f"A new issue #{issue_id} was filed. Find similar issues and write an appropriate comment on it, ensuring you link these three issues for the user to explore."
-        )
-
-    return web.json_response({"status": "ok", "issue_id": issue_id, "summary": result.output})
-
-async def run_trigger_server() -> None:
-    app = web.Application()
-    app.router.add_post("/trigger-comment", handle_trigger_comment)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", TRIGGER_PORT)
-    await site.start()
-    print(f"Trigger server listening on http://0.0.0.0:{TRIGGER_PORT}/trigger-comment")
-    await asyncio.Future()
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--serve-trigger", action="store_true")
-    args = parser.parse_args()
-
-    if args.serve_trigger:
-        asyncio.run(run_trigger_server())
-    else:
-        run_acp_stdio_sync(agent, name = "CAB432 A2 MCP AGENT", version = "1.0.0")
+    run_acp_stdio_sync(agent, name = "CAB432 A2 MCP AGENT", version = "1.0.0")
