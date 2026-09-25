@@ -299,7 +299,7 @@ async def stop_agent(process: asyncio.subprocess.Process) -> None:
 
 async def health_check_handler(connection, request):
     """
-    Intercepts the HTTP handshake. If the path is /healthz, 
+    Intercepts the HTTP handshake. If the path is /health, 
     it returns an HTTP 200 OK immediately without upgrading to WebSockets.
     """
     if request.path == "/health":

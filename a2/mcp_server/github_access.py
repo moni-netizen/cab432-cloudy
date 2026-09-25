@@ -213,5 +213,5 @@ def return_bodies(items: list) -> list:
 
 
 if __name__ == "__main__":
-   mcp.run(show_banner=False, transport="streamable-http", host="0.0.0.0", port=8000)
+   mcp.run(show_banner=False, transport="streamable-http", host="0.0.0.0", port=8080)
 
