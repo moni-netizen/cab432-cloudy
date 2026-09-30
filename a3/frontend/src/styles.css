@@ -89,6 +89,7 @@ body.auth[data-mode="register"] { --accent: var(--register-accent); }
   cursor: pointer;
 }
 .link:hover { text-decoration: underline; }
+.field[hidden] { display: none; }
 
 @media (max-width: 760px) {
   .auth-shell { grid-template-columns: 1fr; grid-template-rows: 28dvh 1fr; }

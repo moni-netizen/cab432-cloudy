@@ -8,14 +8,14 @@ const copy = {
     title: "Welcome back!",
     action: "Log in",
     switchText: "Register",
-    path: "auth/login",
+    path: "/auth/login",
     autocomplete: "current-password",
   },
   register: {
     title: "Register user",
     action: "Register",
     switchText: "have a user? login",
-    path: "auth/register",
+    path: "/auth/register",
     autocomplete: "new-password",
   },
 } as const;
@@ -29,6 +29,8 @@ function el<T extends HTMLElement>(id: string): T {
 const form = el<HTMLFormElement>("auth-form");
 const title = el<HTMLElement>("auth-title");
 const username = el<HTMLInputElement>("username");
+const email = el<HTMLInputElement>("email");
+const emailField = el<HTMLElement>("email-field");
 const password = el<HTMLInputElement>("password");
 const message = el<HTMLElement>("auth-message");
 const submit = el<HTMLButtonElement>("auth-submit");
@@ -50,23 +52,41 @@ function setMode(next: Mode): void {
   submit.textContent = c.action;
   switcher.textContent = c.switchText;
   password.autocomplete = c.autocomplete;
+  emailField.hidden = mode !== "register";
   showMessage("");
 }
 
-async function errorFrom(res: Response): Promise<string> {
+async function messageFrom(res: Response): Promise<string | null> {
   try {
     const body = (await res.json()) as { message?: string };
-    if (body.message) return body.message;
+    return body.message ?? null;
   } catch {
-    // Body wasn't JSON; fall through to the generic message.
+    return null; // body wasn't JSON
   }
-  return mode === "login" ? "Login failed. Check your details and try again." : "Registration failed. Try a different username.";
+}
+
+async function errorFrom(res: Response): Promise<string> {
+  return (
+    (await messageFrom(res)) ??
+    (mode === "login"
+      ? "Login failed. Check your details and try again."
+      : "Registration failed. Try a different username.")
+  );
 }
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!username.value.trim() || !password.value) {
-    showMessage("Enter a username and password.", "error");
+
+  const isRegister = mode === "register";
+  if (
+    !username.value.trim() ||
+    !password.value ||
+    (isRegister && (!email.value.trim() || !email.checkValidity()))
+  ) {
+    showMessage(
+      isRegister ? "Enter a username, a valid email and a password." : "Enter a username and password.",
+      "error",
+    );
     return;
   }
 
@@ -74,11 +94,15 @@ form.addEventListener("submit", async (event) => {
   showMessage("");
 
   try {
+    const payload = isRegister
+      ? { username: username.value.trim(), email: email.value.trim(), password: password.value }
+      : { username: username.value.trim(), password: password.value };
+
     const res = await fetch(`${API_BASE}${copy[mode].path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include", // lets the server set its HttpOnly session cookie
-      body: JSON.stringify({ username: username.value.trim(), password: password.value }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
@@ -89,10 +113,12 @@ form.addEventListener("submit", async (event) => {
     if (mode === "login") {
       window.location.assign(DASHBOARD_URL);
     } else {
+      const serverMessage = await messageFrom(res);
       password.value = "";
+      email.value = "";
       setMode("login");
-      showMessage("Account created. Log in to continue.", "ok");
-    }
+      showMessage(serverMessage ?? "User successfully created. Please check your email.", "ok");
+}
   } catch {
     showMessage("Could not reach the server. Try again in a moment.", "error");
   } finally {
