@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Log in</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body class="auth" data-mode="login">
+    <main class="auth-shell">
+      <!-- Left: image slot. Set --art-image in styles.css (see :root). -->
+      <section class="auth-art" aria-hidden="true"></section>
+
+      <!-- Right: form panel. Background is set by --panel-bg / --panel-image. -->
+      <section class="auth-panel">
+        <form id="auth-form" class="auth-form" novalidate>
+          <h1 id="auth-title">Welcome back!</h1>
+
+          <label class="field">
+            <span class="sr-only">Username</span>
+            <input id="username" name="username" type="text" placeholder="Username" autocomplete="username" required />
+          </label>
+
+          <label class="field">
+            <span class="sr-only">Password</span>
+            <input id="password" name="password" type="password" placeholder="Password" autocomplete="current-password" required />
+          </label>
+
+          <p id="auth-message" class="message" role="status" aria-live="polite"></p>
+
+          <button id="auth-submit" type="submit" class="btn">Log in</button>
+          <button id="auth-switch" type="button" class="link">register</button>
+        </form>
+      </section>
+    </main>
+    <script type="module" src="/src/login.ts"></script>
+  </body>
+</html>
