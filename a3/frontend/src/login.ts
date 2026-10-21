@@ -1,6 +1,26 @@
 import "./styles.css";
 import { API_BASE, DASHBOARD_URL } from "./config";
 
+type AuthResponse = {
+  message?: string;
+  token?: string;
+  user?: {
+    userId: string;
+    username: string;
+    email: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+async function readJson<T>(res: Response): Promise<T | null> {
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return null; // body wasn't JSON
+  }
+}
+
 type Mode = "login" | "register";
 
 const copy = {
@@ -101,7 +121,7 @@ form.addEventListener("submit", async (event) => {
     const res = await fetch(`${API_BASE}${copy[mode].path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include", // lets the server set its HttpOnly session cookie
+      credentials: "include",
       body: JSON.stringify(payload),
     });
 
@@ -110,15 +130,12 @@ form.addEventListener("submit", async (event) => {
       return;
     }
 
-    if (mode === "login") {
-      window.location.assign(DASHBOARD_URL);
-    } else {
-      const serverMessage = await messageFrom(res);
-      password.value = "";
-      email.value = "";
-      setMode("login");
-      showMessage(serverMessage ?? "User successfully created. Please check your email.", "ok");
-}
+    const data = await readJson<AuthResponse>(res);
+    if (data?.token) {
+      sessionStorage.setItem("auth_token", data.token);
+    }
+
+    window.location.assign(DASHBOARD_URL);
   } catch {
     showMessage("Could not reach the server. Try again in a moment.", "error");
   } finally {
