@@ -3,7 +3,7 @@ import { API_BASE } from "./config";
 import { drawDonut } from "./donut";
 
 // TEMP: hardcode your own SteamID64 until it's stored per user
-const STEAM_ID = "7656119XXXXXXXXXX";
+const STEAM_ID = "76561198986033160";
 
 async function guard(): Promise<boolean> {
   try {
