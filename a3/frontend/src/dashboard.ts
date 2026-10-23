@@ -14,7 +14,8 @@ async function guard(): Promise<void> {
     const data = await res.json(); // dashboard content from your Lambda
     console.log(data);             // render this into the page
     document.documentElement.classList.remove("checking");
-  } catch {
+  } catch (err){
+    console.error("Guard failed:", err);
     window.location.replace("/");
   }
 }

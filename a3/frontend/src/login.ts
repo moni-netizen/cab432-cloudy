@@ -132,7 +132,7 @@ form.addEventListener("submit", async (event) => {
 
     const data = await readJson<AuthResponse>(res);
     if (data?.token) {
-      sessionStorage.setItem("auth_token", data.token);
+      sessionStorage.setItem("token", data.token);
     }
 
     window.location.assign(DASHBOARD_URL);

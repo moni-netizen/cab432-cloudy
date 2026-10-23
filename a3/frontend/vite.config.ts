@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 const BACKEND = "https://s4am6cpybl.execute-api.ap-southeast-2.amazonaws.com";
 
 export default defineConfig({
-  server: { proxy: { "/ver": { target: BACKEND, changeOrigin: true }} },
+  server: { proxy: { "/a3": { target: BACKEND, changeOrigin: true }} },
   build: {
     rollupOptions: {
       input: {
