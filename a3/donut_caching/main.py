@@ -16,22 +16,21 @@ rds = redis.Redis(
 TTL = {"all": 7 * 86400, "recent": 86400}
 
 # in the case we need to get our data again...
-BUILDERS = {"all": get_games_by_user, "recent": get_recent_games_by_user}
+BUILDERS = {"all": get_games_by_user,
+ "recent": get_recent_games_by_user,
+ "modified1wk": get_game_updates}
 
-def cached(steam_id: str, kind: str):
-    key = f"donut:{kind}:{steam_id}"
+def cached(namespace: str, ident: str, ttl: int, builder):
+    key = f"{namespace}:{ident}"                   # e.g. "donut_recent:7656...", "modified2w:7656..."
     try:
-        # is our key cached?
         hit = rds.get(key)
         if hit:
             return json.loads(hit), "hit"
     except redis.RedisError:
-        pass   
-    
-    # not cached -> call steam api                        
-    data = BUILDERS[kind](steam_id)
+        pass
+    data = builder(ident)
     try:
-        rds.setex(key, TTL[kind], json.dumps(data))
+        rds.setex(key, ttl, json.dumps(data))
     except redis.RedisError:
         pass
     return data, "miss"
@@ -45,15 +44,15 @@ def games(steam_id: str, response: Response):
     if not (steam_id.isdigit() and len(steam_id) == 17):
         raise HTTPException(400, "invalid id")
     t0 = time.perf_counter()
-    all_games, s1 = cached(steam_id, "all")
-    recent, s2 = cached(steam_id, "recent")
+    all_games, s1 = cached("donut_all", steam_id, 7 * 86400, get_games_by_user)
+    recent, s2 = cached("donut_recent", steam_id, 86400, get_recent_games_by_user)
     response.headers["X-Cache"] = f"all={s1},recent={s2}"
     return {"all_games": all_games, "recent_games": recent,
             "cache": {"all": s1, "recent": s2},
             "ms": round((time.perf_counter() - t0) * 1000, 1)}
 
 @app.get("/a3/games")
-def get_game_updates():
-    games, status = cached("modifiedWeekly", "global")
-    response.headers["X-Cache"] = status
-    return {"games": games, "cache": status}
+def get_new_games(response: Response):
+    games, s3 = cached("modifiedWeekly", "global", 3600 * 6, get_game_updates) # 6 hours
+    response.headers["X-Cache"] = s3
+    return {"games": games, "cache": s3}

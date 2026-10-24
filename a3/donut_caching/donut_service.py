@@ -7,14 +7,13 @@ from donut_model import(
     get_pie_ltw
 )
 
-secrets = boto3.client("secretsmanager")
-
 ssm_client = boto3.client('ssm')
 aws_region = ssm_client.get_parameter(
     Name = '/n12023868/a3/general/aws-region',
     WithDecryption=False,
 )["Parameter"]["Value"]
 
+secrets = boto3.client("secretsmanager", region_name = aws_region)
 secret_name = "n12023868-a3-secrets"
 
 def get_secret() -> dict:
@@ -39,7 +38,7 @@ steam_api_token = secrets["STEAM_API_TOKEN"]
 ## perhaps edit this site to cache this too? many users will get
 ## the same most recently modified games, so we want to limit these
 ## calls. probably even more so with our data!
-def get_game_updates(time_since: int) -> list[str]:
+def get_game_updates(steam_id:str) -> list[str]:
     time_since = int(time.time()) - (7 * 86400) # one week
     apps, last_appid = [], 0
     for _ in range(5):

@@ -1,0 +1,16 @@
+services:
+  redis:
+    image: redis:7
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_TLS: "0"
+      AWS_DEFAULT_REGION: ap-southeast-2
+    volumes:
+     - ${USERPROFILE}\.aws:/home/appuser/.aws:ro
+    depends_on:
+      - redis
+    

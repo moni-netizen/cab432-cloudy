@@ -34,7 +34,7 @@ const copy = {
   register: {
     title: "Register user",
     action: "Register",
-    switchText: "have a user? login",
+    switchText: "Have an account? Login",
     path: "/auth/register",
     autocomplete: "new-password",
   },
@@ -56,6 +56,27 @@ const message = el<HTMLElement>("auth-message");
 const submit = el<HTMLButtonElement>("auth-submit");
 const switcher = el<HTMLButtonElement>("auth-switch");
 
+// Steam ID field: clone the email field so it inherits the same markup and styling
+const steamField = emailField.cloneNode(true) as HTMLElement;
+steamField.id = "steam-field";
+steamField.querySelectorAll("[for]").forEach((n) => n.setAttribute("for", "steamId"));
+if (steamField.hasAttribute("for")) steamField.setAttribute("for", "steamId");
+const steamLabel = steamField.querySelector(".sr-only");
+if (steamLabel) steamLabel.textContent = "Steam ID";
+
+const steamInput = steamField.querySelector("input") as HTMLInputElement;
+steamInput.id = "steamId";
+steamInput.name = "steamId";
+steamInput.type = "text";
+steamInput.value = "";
+steamInput.placeholder = "Steam ID (17 digits)";
+steamInput.inputMode = "numeric";
+steamInput.maxLength = 17;
+steamInput.autocomplete = "off";
+steamInput.required = false;          // validated in the submit handler instead
+
+emailField.after(steamField);         // sits between email and password
+
 let mode: Mode = "login";
 
 function showMessage(text: string, kind: "error" | "ok" | "" = ""): void {
@@ -73,6 +94,7 @@ function setMode(next: Mode): void {
   switcher.textContent = c.switchText;
   password.autocomplete = c.autocomplete;
   emailField.hidden = mode !== "register";
+  steamField.hidden = mode !== "register";
   showMessage("");
 }
 
@@ -98,13 +120,15 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const isRegister = mode === "register";
+  const steamId = steamInput.value.trim();
+  const steamOk = /^7656119\d{10}$/.test(steamId);
   if (
     !username.value.trim() ||
     !password.value ||
-    (isRegister && (!email.value.trim() || !email.checkValidity()))
+    (isRegister && (!email.value.trim() || !email.checkValidity() || !steamOk))
   ) {
     showMessage(
-      isRegister ? "Enter a username, a valid email and a password." : "Enter a username and password.",
+      isRegister ? "Enter a username, a valid email, a Steam ID and a password." : "Enter a username and password.",
       "error",
     );
     return;
@@ -115,7 +139,7 @@ form.addEventListener("submit", async (event) => {
 
   try {
     const payload = isRegister
-      ? { username: username.value.trim(), email: email.value.trim(), password: password.value }
+      ? { username: username.value.trim(), email: email.value.trim(), steamId, password: password.value }
       : { username: username.value.trim(), password: password.value };
 
     const res = await fetch(`${API_BASE}${copy[mode].path}`, {
