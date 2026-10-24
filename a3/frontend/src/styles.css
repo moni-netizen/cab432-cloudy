@@ -102,6 +102,20 @@ body.dash { display: grid; grid-template-columns: 16rem 1fr; background: #fff; c
 .dash-side { display: flex; flex-direction: column; justify-content: space-between; padding: 1.5rem; }
 .dash-title { margin: 0; font-size: 1.15rem; font-weight: 500; color: #000; }
 .dash-side .link { justify-self: start; color: #000; padding-left: 0; }
+.dash-main {padding: 0 auto;}
+.charts {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 640px;          /* container width; use a % or rem value if you prefer */
+  padding: 24px;
+  background: #efe9e3;       /* the beige card colour */
+  border-radius: 12px;
+  margin: 0 auto;
+}
+.chart-box { flex: 1 1 600px; }     /* each box is at least 260px wide, then shares the space */
+.chart-div { height: 150px; } 
 
 @media (max-width: 760px) {
   body.dash { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
