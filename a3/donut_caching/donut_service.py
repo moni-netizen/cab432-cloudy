@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json, os, urllib.parse, urllib.request, time
 import boto3
+from botocore.exceptions import ClientError
 
 from donut_model import(
     get_pie_history,
@@ -8,7 +9,7 @@ from donut_model import(
 )
 
 ssm_client = boto3.client('ssm')
-aws_region = os.environ.get("AWS_DEFAULT_REGION")
+aws_region = "ap-southeast-2"
 
 secrets = boto3.client("secretsmanager", region_name = aws_region)
 secret_name = "n12023868-a3-secrets"
