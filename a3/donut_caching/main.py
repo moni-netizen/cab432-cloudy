@@ -27,7 +27,7 @@ def cached(namespace: str, ident: str, ttl: int, builder):
         pass
     data = builder(ident)
     try:
-       mc.set(key, json.domps(data), expire = ttl)
+       mc.set(key, json.dumps(data), expire = ttl)
     except (OSError, MemcacheError):
         pass
     return data, "miss"
