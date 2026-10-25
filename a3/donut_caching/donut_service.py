@@ -8,10 +8,7 @@ from donut_model import(
 )
 
 ssm_client = boto3.client('ssm')
-aws_region = ssm_client.get_parameter(
-    Name = '/n12023868/a3/general/aws-region',
-    WithDecryption=False,
-)["Parameter"]["Value"]
+aws_region = os.environ.get("AWS_DEFAULT_REGION")
 
 secrets = boto3.client("secretsmanager", region_name = aws_region)
 secret_name = "n12023868-a3-secrets"

@@ -9,8 +9,8 @@ from donut_service import (
 
 app = FastAPI()
 rds = redis.Redis(
-    host = os.environ.get("REDIS_HOST", "redis"), port = 6379, #beware tihs port. is it supported?
-    ssl=os.environ.get("REDIS_TLS", "0") == "1",
+    host = os.environ.get("REDIS_HOST"), port = 6379, #beware tihs port. is it supported?
+    ssl=os.environ.get("REDIS_TLS") == "1",
     socket_timeout=1, socket_connect_timeout=1, decode_responses=True,
 )
 TTL = {"all": 7 * 86400, "recent": 86400}
