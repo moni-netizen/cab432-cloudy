@@ -42,6 +42,34 @@ cloudInfrastructure:
   - type: Lambda function
     arn: arn:aws:lambda:ap-southeast-2:901444280953:function:n12023868-dashboard
     description: just pulls up the cute little dashboard i made. yyaayyy!
+  
+  - type: Lambda Function
+    arn: arn:aws:lambda:ap-southeast-2:901444280953:function:n12023868-forum
+    description: Manages the forums on my site.
+
+  -  type: ECR Registry
+     arn: arn:aws:ecr:ap-southeast-2:901444280953:repository/n12023868-a3/donuts
+     description: Contains the tracking information and steam API calls
+
+  - type: Memcached ElastiCache
+    arn: arn:aws:elasticache:ap-southeast-2:901444280953:cluster:n12023868-a3-cache-cluster
+    description: Caches steam API calls with a TTL of 1 day and 7 days for l2w and all-time hours donuts
+  
+  - type: ECS cluster
+    arn: arn:aws:ecs:ap-southeast-2:901444280953:cluster/n12023868-a3
+    description: ECS cluster used for the assignment. attached is an ALB and some instructions to set up my containers. 
+
+  - type: Task Definition
+    arn: arn:aws:ecs:ap-southeast-2:901444280953:task-definition/n12023868-tracker-td:5
+    description: TD to get the ECR registry tracking container working. 
+  
+  - type: Load Balancer
+    arn: arn:aws:elasticloadbalancing:ap-southeast-2:901444280953:loadbalancer/app/n12023868-a3-alb/4dbcb036f140669d
+    description: as of 25/10, balances the loads of all my steam api requests for the donuts
+  
+  - type: Target Group
+    arn: arn:aws:elasticloadbalancing:ap-southeast-2:901444280953:targetgroup/n12023868-a3-donut/ede99f6e0a2684d3
+    description: donut target group. idk what to tell you it just lets me listen to any steam api requests for donuts
 
 
 metaData:
