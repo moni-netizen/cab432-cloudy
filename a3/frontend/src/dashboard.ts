@@ -2,10 +2,9 @@ import "./styles.css";
 import { API_BASE } from "./config";
 import { drawDonut } from "./donut";
 
-// TEMP: hardcode your own SteamID64 until it's stored per user
-const STEAM_ID = "76561198986033160";
+type Me = { username?: string; steamId?: string | null };
 
-async function guard(): Promise<boolean> {
+async function guard(): Promise<Me | null> {
   try {
     const token = sessionStorage.getItem("token");
     if (!token) throw new Error("Not signed in");
@@ -15,13 +14,13 @@ async function guard(): Promise<boolean> {
     });
     if (!res.ok) throw new Error("Not signed in");
 
-    console.log(await res.json());
+    const me = (await res.json()) as Me;
     document.documentElement.classList.remove("checking");
-    return true;
+    return me;
   } catch (err) {
     console.error("Guard failed:", err);
     window.location.replace("/");
-    return false;
+    return null;
   }
 }
 
@@ -38,11 +37,17 @@ async function loadCharts(steamId: string): Promise<void> {
 }
 
 async function init(): Promise<void> {
-  if (await guard()) await loadCharts(STEAM_ID);
+  const me = await guard();
+  if (!me) return;
+  if (!me.steamId) {
+    console.warn("No Steam ID stored for this user");
+    return;
+  }
+  await loadCharts(me.steamId);
 }
 
 document.getElementById("logout")?.addEventListener("click", () => {
-  sessionStorage.removeItem("token");   // was "auth_token", which never matched
+  sessionStorage.removeItem("token");
   window.location.replace("/");
 });
 
