@@ -4,7 +4,7 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "3000:3000"
     environment:
       REDIS_HOST: redis
       REDIS_TLS: "0"
