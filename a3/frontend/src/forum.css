@@ -37,6 +37,23 @@ body.forum-page { margin: 0; min-height: 100dvh; background: #e8e4ee; color: #00
 
 .empty { color: var(--muted); text-align: center; padding: 2rem 0; }
 
+.msg header { padding-right: 2.4rem; }          /* room for the ... button */
+.msg .menu { position: absolute; top: .4rem; right: .5rem; }
+.dots { border: 0; background: none; font-size: 1.3rem; line-height: 1; padding: .1rem .5rem;
+        border-radius: 6px; cursor: pointer; color: var(--muted); }
+.dots:hover, .dots[aria-expanded="true"] { background: rgba(0, 0, 0, .08); }
+.menu-pop { position: absolute; right: 0; top: 100%; z-index: 5; min-width: 7rem; display: grid;
+            background: #fff; border: 1px solid var(--line); border-radius: 8px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .15); overflow: hidden; }
+.menu-pop button { border: 0; background: none; text-align: left; padding: .55rem .9rem;
+                   cursor: pointer; font: inherit; }
+.menu-pop button:hover { background: #f2eee9; }
+.menu-pop .danger { color: var(--danger); }
+.edit-box { display: grid; gap: .5rem; margin: .4rem 0; }
+.edit-box textarea { width: 100%; resize: vertical; padding: .5rem; border: 1px solid var(--line);
+                     border-radius: 6px; font: inherit; background: #fff; }
+.edit-box .row { display: flex; gap: .5rem; }
+
 .btn.ghost { background: transparent; color: #0d1b5e; border: 1.5px solid #0d1b5e; }
 .btn.small { padding: .4rem .8rem; }
 #loadMore { display: block; margin: 0 auto 1rem; }

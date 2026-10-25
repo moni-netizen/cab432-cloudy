@@ -81,7 +81,7 @@ async function guard(): Promise<boolean> {
 async function loadMessages(more = false): Promise<void> {
   const qs = more && cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
   try {
-    const res = await fetch(`${API_BASE}/forum/messages${qs}`, { headers: headers() });
+    const res = await fetch(`${API_BASE}/forum${qs}`, { headers: headers() });
     if (!res.ok) {
       showStatus(`Could not load messages (${res.status}).`, true);
       return;
@@ -99,6 +99,80 @@ async function loadMessages(more = false): Promise<void> {
     render();
   } catch {
     showStatus("Could not reach the server.", true);
+  }
+}
+
+function closeMenus(): void {
+  document.querySelectorAll<HTMLElement>(".menu-pop").forEach((p) => (p.hidden = true));
+  document.querySelectorAll(".dots").forEach((d) => d.setAttribute("aria-expanded", "false"));
+}
+document.addEventListener("click", closeMenus);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeMenus();
+});
+
+// One place that turns backend status codes into messages
+function explain(status: number, action: "edit" | "delete"): string {
+  switch (status) {
+    case 400: return "The server rejected that input.";
+    case 401: return "Your session has expired. Please log in again.";
+    case 403: return `You can only ${action} your own messages.`;
+    case 404: return "That message no longer exists.";
+    default:  return `Could not ${action} (${status}).`;
+  }
+}
+
+function startEdit(m: Msg, textEl: HTMLElement): void {
+  const box = document.createElement("div");
+  box.className = "edit-box";
+
+  const ta = document.createElement("textarea");
+  ta.value = m.message;
+  ta.rows = 3;
+  ta.maxLength = MAX_LEN;
+
+  const row = document.createElement("div");
+  row.className = "row";
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "btn small";
+  save.textContent = "Save";
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "btn small ghost";
+  cancel.textContent = "Cancel";
+
+  cancel.addEventListener("click", () => box.replaceWith(textEl));
+  save.addEventListener("click", () => void editMessage(m, ta.value.trim(), save));
+
+  row.append(save, cancel);
+  box.append(ta, row);
+  textEl.replaceWith(box);
+  ta.focus();
+}
+
+async function editMessage(m: Msg, newText: string, btn: HTMLButtonElement): Promise<void> {
+  if (!newText) return showStatus("A message can't be empty.", true);
+  if (newText.length > MAX_LEN) return showStatus(`Keep it under ${MAX_LEN} characters.`, true);
+
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/forum/messages/${encodeURIComponent(m.messageId)}`, {
+      method: "PUT",
+      headers: headers(true),
+      body: JSON.stringify({ message: newText, images: m.images ?? [] }),
+    });
+    if (!res.ok) {
+      showStatus(explain(res.status, "edit"), true);
+      if (res.status === 404) await loadMessages();   // it was deleted elsewhere, so refresh
+      return;
+    }
+    showStatus("Saved.");
+    await loadMessages();
+  } catch {
+    showStatus("Could not reach the server.", true);
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -133,7 +207,8 @@ function render(): void {
     who.textContent = authorOf(m);
     const when = document.createElement("span");
     when.className = "when";
-    when.textContent = new Date(m.createdAt).toLocaleString();
+    const edited = m.updatedAt && m.updatedAt !== m.createdAt ? " (edited)" : "";
+    when.textContent = new Date(m.createdAt).toLocaleString() + edited;
     head.append(who, when);
 
     const text = document.createElement("p");
@@ -157,7 +232,7 @@ function render(): void {
       card.append(imgs);
     }
 
-    const actions = document.createElement("div");
+        const actions = document.createElement("div");
     actions.className = "actions";
     const replyBtn = document.createElement("button");
     replyBtn.type = "button";
@@ -166,15 +241,50 @@ function render(): void {
     replyBtn.addEventListener("click", () => openComposer(m));
     actions.append(replyBtn);
 
-    if (me.userId && m.userId === me.userId) {
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "link danger";
-      del.textContent = "Delete";
-      del.addEventListener("click", () => void deleteMessage(m));
-      actions.append(del);
-    }
-    card.append(actions);
+    // "..." menu with Edit / Delete (the backend decides who is allowed)
+    const menu = document.createElement("div");
+    menu.className = "menu";
+    const dots = document.createElement("button");
+    dots.type = "button";
+    dots.className = "dots";
+    dots.textContent = "…";
+    dots.setAttribute("aria-label", "Message options");
+    dots.setAttribute("aria-haspopup", "true");
+    dots.setAttribute("aria-expanded", "false");
+
+    const pop = document.createElement("div");
+    pop.className = "menu-pop";
+    pop.hidden = true;
+    pop.setAttribute("role", "menu");
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "Edit";
+    editBtn.addEventListener("click", () => {
+      closeMenus();
+      startEdit(m, text);
+    });
+
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "danger";
+    delBtn.textContent = "Delete";
+    delBtn.addEventListener("click", () => {
+      closeMenus();
+      void deleteMessage(m);
+    });
+
+    dots.addEventListener("click", (e) => {
+      e.stopPropagation();                 // so the outside-click handler doesn't close it at once
+      const willOpen = pop.hidden;
+      closeMenus();
+      pop.hidden = !willOpen;
+      dots.setAttribute("aria-expanded", String(willOpen));
+    });
+
+    pop.append(editBtn, delBtn);
+    menu.append(dots, pop);
+    card.append(menu, actions);
     thread.append(card);
 
     const children = kids.get(m.messageId) ?? [];
@@ -242,7 +352,7 @@ function closeComposer(): void {
 async function deleteMessage(m: Msg): Promise<void> {
   if (!confirm("Delete this message?")) return;
   try {
-    const res = await fetch(`${API_BASE}/forum/messages/${encodeURIComponent(m.messageId)}`, {
+    const res = await fetch(`${API_BASE}/forum/${encodeURIComponent(m.messageId)}`, {
       method: "DELETE",
       headers: headers(),
     });
@@ -289,8 +399,8 @@ sendBtn.addEventListener("click", async () => {
 
   sendBtn.disabled = true;
   try {
-    const res = await fetch(`${API_BASE}/forum/messages`, {
-      method: "PUT",
+    const res = await fetch(`${API_BASE}/forum`, {
+      method: "POST",
       headers: headers(true),
       // no userId here: the backend takes it from the verified token
       body: JSON.stringify({ message, images: pendingImages, referenceId: replyTo?.messageId ?? "" }),
