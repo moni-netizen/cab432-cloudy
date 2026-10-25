@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" class="checking">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Public Forum</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body class="forum-page">
+    <main class="forum">
+      <header class="forum-head">
+        <h1>Public Forum</h1>
+        <a class="link" href="/dashboard.html">← back to dashboard</a>
+      </header>
+
+      <p id="status" class="status" role="status"></p>
+      <section id="feed" class="feed" aria-live="polite"></section>
+      <button id="loadMore" class="btn ghost" type="button" hidden>Load older messages</button>
+
+      <button id="writeBtn" class="btn" type="button">Write message</button>
+
+      <section id="composer" class="composer" hidden>
+        <p id="replyingTo" class="replying"></p>
+        <textarea id="msgBody" rows="3" maxlength="1000" placeholder="message body..."></textarea>
+        <div id="imageList" class="chips"></div>
+        <div id="imageRow" class="image-row" hidden>
+          <input id="imageUrl" type="url" placeholder="https://... image URL" />
+          <button id="addImageConfirm" type="button" class="btn small">Add</button>
+        </div>
+        <div class="composer-actions">
+          <button id="addImage" type="button" class="plus" aria-label="Attach an image by URL">+</button>
+          <span class="spacer"></span>
+          <button id="cancel" type="button" class="btn ghost">Cancel</button>
+          <button id="send" type="button" class="btn">Send</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/forum.ts"></script>
+  </body>
+</html>

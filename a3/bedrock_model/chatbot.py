@@ -140,7 +140,7 @@ auth = MCP_SHARED_TOKEN), init_timeout=30.0)
 agent = Agent(
     model,
     instructions=(
-        "You are an assistant who helps users get achievements for STEAM games."
+        "You are an assistant who helps users get achievements for STARDEW VALLEY"
         "When asked about an achievement, use the search_sites"
         "use process_pull_request to process pull requests by id."
         "use check_and_store to find the three most similar issues to an issue, and store this to the s3 vectors. you are to list the similarities between your issue and the vector results, but do not make a comment, just respond to the request."

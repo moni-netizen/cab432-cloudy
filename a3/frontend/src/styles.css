@@ -102,6 +102,8 @@ body.dash { display: grid; grid-template-columns: 16rem 1fr; background: #fff; c
 .dash-side { display: flex; flex-direction: column; justify-content: space-between; padding: 1.5rem; }
 .dash-title { margin: 0; font-size: 1.15rem; font-weight: 500; color: #000; }
 .dash-side .link { justify-self: start; color: #000; padding-left: 0; }
+.dash-nav { display: grid; gap: .5rem; margin: 1rem 0; }
+.dash-nav .btn { text-align: center; text-decoration: none; display: block; }
 .dash-main {padding: 0 auto;}
 .charts {
   display: flex;
