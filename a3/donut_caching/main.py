@@ -1,5 +1,8 @@
 import json, os, time
-import boto3, redis
+import boto3
+from pymemcache.client.base import Client
+from pymemcache.exceptions import MemcacheError
+
 from fastapi import FastAPI, HTTPException, Response
 from donut_service import (
     get_games_by_user, 
@@ -8,30 +11,24 @@ from donut_service import (
     )
 
 app = FastAPI()
-rds = redis.Redis(
-    host = os.environ.get("REDIS_HOST"), port = 6379, #beware tihs port. is it supported?
-    ssl=os.environ.get("REDIS_TLS") == "1",
-    socket_timeout=1, socket_connect_timeout=1, decode_responses=True,
-)
-TTL = {"all": 7 * 86400, "recent": 86400}
 
-# in the case we need to get our data again...
-BUILDERS = {"all": get_games_by_user,
- "recent": get_recent_games_by_user,
- "modified1wk": get_game_updates}
+mc = Client(
+    (os.environ.get('CACHE_HOST', 'localhost'), int(os.environ.get("CACHE_PORT", "11211"))),
+    connect_timeout = 1, timeout = 1, no_delay = True,
+)
 
 def cached(namespace: str, ident: str, ttl: int, builder):
     key = f"{namespace}:{ident}"                   # e.g. "donut_recent:7656...", "modified2w:7656..."
     try:
-        hit = rds.get(key)
+        hit = mc.get(key)
         if hit:
             return json.loads(hit), "hit"
-    except redis.RedisError:
+    except (OSError, MemcacheError):
         pass
     data = builder(ident)
     try:
-        rds.setex(key, ttl, json.dumps(data))
-    except redis.RedisError:
+       mc.set(key, json.domps(data), expire = ttl)
+    except (OSError, MemcacheError):
         pass
     return data, "miss"
 
