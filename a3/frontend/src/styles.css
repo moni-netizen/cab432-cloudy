@@ -1,0 +1,136 @@
+:root {
+  /* --- Theme tokens: edit these to restyle --- */
+  --text: #0f1420;
+  --muted: #667085;
+  --line: #98a2b3;
+  --danger: #b42318;
+  --ok: #067647;
+
+  --login-accent: #0d1b5e;     /* navy */
+  --register-accent: #1f6f6b;  /* teal */
+  --accent: var(--login-accent);
+
+  /* Left image slot: set to e.g. url("/art.jpg") (file in /public). */
+  --art-image: none;
+  --art-fallback: linear-gradient(160deg, #0d1b5e 0%, #1b4f6b 55%, #e2a33a 130%);
+
+  /* Right panel: any colour, gradient or image. */
+  --panel-bg: #ffffff;
+  --panel-image: none;
+
+  color: var(--text);
+  background: #fff;
+  color-scheme: light;
+  font-family: Outfit, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100dvh; }
+button, input { font: inherit; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, white); outline-offset: 2px; }
+
+/* ---------- Login / register ---------- */
+body.auth[data-mode="register"] { --accent: var(--register-accent); }
+
+.auth-shell { display: grid; grid-template-columns: 1fr 1fr; min-height: 100dvh; }
+
+.auth-art {
+  background: var(--art-image) center / cover no-repeat, var(--art-fallback);
+}
+
+.auth-panel {
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: var(--panel-image) center / cover no-repeat, var(--panel-bg);
+}
+
+.auth-form { display: grid; gap: 1.25rem; width: min(100%, 22rem); }
+.auth-form h1 { font-size: 2rem; font-weight: 600; margin: 0 0 1rem; text-align: center; }
+
+.field input {
+  width: 100%;
+  padding: 0.6rem 0.1rem;
+  border: 0;
+  border-bottom: 1.5px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+}
+.field input::placeholder { color: var(--muted); }
+.field input:focus { outline: none; border-bottom-color: var(--accent); }
+
+.message { margin: 0; min-height: 1.5rem; font-size: 0.9rem; }
+.message[data-kind="error"] { color: var(--danger); }
+.message[data-kind="ok"] { color: var(--ok); }
+
+.btn {
+  border: 0;
+  border-radius: 0.9rem;
+  padding: 0.85rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) { filter: brightness(1.15); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.link {
+  justify-self: center;
+  border: 0;
+  background: none;
+  padding: 0.25rem;
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+}
+.link:hover { text-decoration: underline; }
+.field[hidden] { display: none; }
+
+@media (max-width: 760px) {
+  .auth-shell { grid-template-columns: 1fr; grid-template-rows: 28dvh 1fr; }
+}
+
+/* ---------- Dashboard ---------- */
+html.checking body { visibility: hidden; }
+
+body.dash { display: grid; grid-template-columns: 16rem 1fr; background: #fff; color: #000; }
+.dash-side { display: flex; flex-direction: column; justify-content: space-between; padding: 1.5rem; }
+.dash-title { margin: 0; font-size: 1.15rem; font-weight: 500; color: #000; }
+.dash-side .link { justify-self: start; color: #000; padding-left: 0; }
+
+.dash-nav { display: grid; gap: .5rem; margin: 1rem 0; }
+.dash-nav .btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  padding: .7rem 1rem;
+  border-radius: .9rem;
+  background: #0d1b5e;
+  color: #fff;
+  font-weight: 500;
+}
+.dash-nav .btn:hover { filter: brightness(1.15); }
+
+.dash-main { padding: 2rem 3rem; }
+.charts {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 640px;          /* container width; use a % or rem value if you prefer */
+  padding: 24px;
+  background: #efe9e3;       /* the beige card colour */
+  border-radius: 12px;
+  margin: 0 auto;
+}
+.chart-box { flex: 1 1 600px; }     /* each box is at least 260px wide, then shares the space */
+.chart-div { height: 150px; } 
+
+@media (max-width: 760px) {
+  body.dash { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+}

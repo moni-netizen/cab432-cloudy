@@ -21,7 +21,7 @@ npm run dev
 Open <http://127.0.0.1:5173/>. The client connects automatically to the endpoint set near the top of `web/main.ts`:
 
 ```text
-ws://127.0.0.1:7331/acp
+ws://127.0.0.1:3000/acp
 ```
 
 Ask the agent to `show me an image` to exercise both native ACP image content and the Markdown image fallback. The deterministic server also exposes the image at `/deterministic-image.svg` and a health check at `/healthz`.

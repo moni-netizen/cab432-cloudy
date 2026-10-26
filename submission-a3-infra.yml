@@ -1,0 +1,76 @@
+cloudInfrastructure:
+  - type: Bedrock model
+    arn: google.gemma-3-12b-it
+    description: The vision model used to process and describe image inputs from the user. 
+
+  - type: Bedrock model
+    arn: nvidia.nemotron-super-3-120b
+    description: The main model used to respond to the user and to scheduled calls, calls tools well. 
+
+  - type: ECS service
+    arn: arn:aws:ecs:ap-southeast-2:901444280953:cluster/n12023868-a3
+    description: The ECS cluster used for this final ! 
+
+  - type: Vector store
+    arn: 
+    description: My vector store. The index used was lodged-issues
+
+  - type: MCP server
+    arn:  
+    description: The ARN to the task definition that manages the MCP server. Guys please idk...
+
+  - type: SQS queue
+    arn: 
+    description: For each new issue, Lister sends a message to SQS. These messages will invoke Executor lambda for writing comments
+
+  - type: EventBridge rule
+    arn: 
+    description: Every hour on the 50th minute (idk how it did that) it will invoke Lister Lambda to check for new issues
+
+  - type: Secrets Manager secret
+    arn: arn:aws:secretsmanager:ap-southeast-2:901444280953:secret:n12023868-a3-secrets-cPdIwy
+    description: Secret parameters such as the cognito client + secret and our steam api key. HUSH!!!
+  
+  - type: DynamoDB table
+    arn: arn:aws:dynamodb:ap-southeast-2:901444280953:table/n12023868-a3-users
+    description: User info for website. contains username, email and steamId among other things
+
+  - type: Lambda function
+    arn: arn:aws:lambda:ap-southeast-2:901444280953:function:n12023868-a3-auth
+    description: Login + registration lambda 
+  
+  - type: Lambda function
+    arn: arn:aws:lambda:ap-southeast-2:901444280953:function:n12023868-dashboard
+    description: just pulls up the cute little dashboard i made. yyaayyy!
+  
+  - type: Lambda Function
+    arn: arn:aws:lambda:ap-southeast-2:901444280953:function:n12023868-forum
+    description: Manages the forums on my site.
+
+  -  type: ECR Registry
+     arn: arn:aws:ecr:ap-southeast-2:901444280953:repository/n12023868-a3/donuts
+     description: Contains the tracking information and steam API calls
+
+  - type: Memcached ElastiCache
+    arn: arn:aws:elasticache:ap-southeast-2:901444280953:cluster:n12023868-a3-cache-cluster
+    description: Caches steam API calls with a TTL of 1 day and 7 days for l2w and all-time hours donuts
+  
+  - type: ECS cluster
+    arn: arn:aws:ecs:ap-southeast-2:901444280953:cluster/n12023868-a3
+    description: ECS cluster used for the assignment. attached is an ALB and some instructions to set up my containers. 
+
+  - type: Task Definition
+    arn: arn:aws:ecs:ap-southeast-2:901444280953:task-definition/n12023868-tracker-td:5
+    description: TD to get the ECR registry tracking container working. 
+  
+  - type: Load Balancer
+    arn: arn:aws:elasticloadbalancing:ap-southeast-2:901444280953:loadbalancer/app/n12023868-a3-alb/4dbcb036f140669d
+    description: as of 25/10, balances the loads of all my steam api requests for the donuts
+  
+  - type: Target Group
+    arn: arn:aws:elasticloadbalancing:ap-southeast-2:901444280953:targetgroup/n12023868-a3-donut/ede99f6e0a2684d3
+    description: donut target group. idk what to tell you it just lets me listen to any steam api requests for donuts
+
+
+metaData:
+  qutUsernameTag:  n12023868@qut.edu.au
