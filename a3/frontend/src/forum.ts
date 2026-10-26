@@ -157,7 +157,7 @@ async function editMessage(m: Msg, newText: string, btn: HTMLButtonElement): Pro
 
   btn.disabled = true;
   try {
-    const res = await fetch(`${API_BASE}/forum/messages/${encodeURIComponent(m.messageId)}`, {
+    const res = await fetch(`${API_BASE}/forum/${encodeURIComponent(m.messageId)}`, {
       method: "PUT",
       headers: headers(true),
       body: JSON.stringify({ message: newText, images: m.images ?? [] }),
