@@ -14,7 +14,6 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - MCP_SERVER_URL=http://mcp-server:8000/mcp
       - AWS_REGION=ap-southeast-2
     volumes:
       - ${USERPROFILE}\.aws:/home/appuser/.aws:ro
@@ -22,14 +21,6 @@ services:
       - mcp-server
     networks:
       - internal
-      - public
-
-  frontend:
-    build:
-      context: ./acp_client
-    ports:
-      - "80:80"
-    networks:
       - public
 
 networks:

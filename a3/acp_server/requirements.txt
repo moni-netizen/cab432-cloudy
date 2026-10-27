@@ -1,5 +1,11 @@
+pydantic-ai-harness[acp]>=0.25.0
 pydantic-ai-slim[bedrock,mcp]>=2.18.0
 fastmcp>=2.0.0
-pydantic-ai-harness[acp]>=0.25.0
 websockets>=15,<16
 boto3>=1.43.0
+pydantic-ai[bedrock,mcp]>=2.18.0
+fastmcp>=2.0.0
+httpx>=0.28.1
+websockets>=15,<16
+boto3>=1.43.0
+aiohttp>=3.14,<4

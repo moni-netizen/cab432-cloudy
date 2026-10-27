@@ -108,7 +108,7 @@ def embed_question(question: str) -> list[float]:
     # get the issue info
     try:
         contents = {
-            "inputText": f"{issue.title}-{issue.body}",
+            "inputText": question,
             "embeddingConfig": {"outputEmbeddingLength": DIMENSION}
         }
 
@@ -121,7 +121,7 @@ def embed_question(question: str) -> list[float]:
 def search_s3(embedding: list[float]) -> list:
     """using our embedding, find the top 3 matches that might best answer 
     our question. yay! returns them as a list of urls """
-    result = query_vectors(
+    result = s3vectors.query_vectors(
         vectorBucketName=bucket_name,
         indexName=index,
         queryVector={"float32": embedding},

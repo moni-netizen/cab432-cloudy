@@ -42,6 +42,7 @@ from pydantic_ai_harness.experimental.acp import run_acp_stdio_sync
 from fastmcp.client.transports import StreamableHttpTransport
 
 import boto3
+from botocore.exceptions import ClientError
 import json
 
 # aws secrets function
@@ -141,14 +142,14 @@ auth = MCP_SHARED_TOKEN), init_timeout=30.0)
 agent = Agent(
     model,
     instructions=(
-        "You are an assistant who helps users get achievements for STARDEW VALLEY"
-        "When asked a question about stardew valley, use the answer_question to query an s3vector store"
-        "Using this output, you extract the text and guide a player towards this achievement/topic."
-        "when asked about another game, remind them that only stardew valley can be evaluated right now."
+        "You are an assistant who helps users get achievements for Stardew Valley. "
+        "When asked a question about Stardew Valley, use the answer_question tool to query the vector store. "
+        "Use its output to guide the player towards the achievement or topic. "
+        "If asked about another game, say that only Stardew Valley is supported right now."
     ),
     toolsets=[mcp_toolset],
     capabilities=[hooks],
 )
 
 if __name__ == "__main__":
-    run_acp_stdio_sync(agent, name = "CAB432 A2 MCP AGENT", version = "1.0.0")
+    run_acp_stdio_sync(agent, name = "CAB432 A3 MCP AGENT", version = "1.0.0")
