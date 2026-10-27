@@ -11,7 +11,7 @@ from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
 # my super scummy PAT storage (sorry)
 def get_secret() -> dict:
 
-    secret_name = "n12023868-secrets"
+    secret_name = "n12023868-a3-secrets"
     region_name = "ap-southeast-2"
 
     # Create a Secrets Manager client
