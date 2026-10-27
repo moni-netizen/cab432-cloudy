@@ -26,7 +26,7 @@ from websockets.exceptions import ConnectionClosed
 logging.basicConfig(level = logging.INFO)
 
 HOST = "0.0.0.0"
-PORT = 3000
+PORT = 8080
 PATH = "/acp"
 AGENT_SCRIPT = Path(__file__).parents[1] / "bedrock_model" / "chatbot.py"
 AGENT_PYTHON = sys.executable
