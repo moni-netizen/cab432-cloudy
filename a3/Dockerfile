@@ -5,7 +5,7 @@ WORKDIR /app
 RUN useradd --create-home --shell /bin/bash appuser
 
 COPY app_requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r app_requirements.txt
 
 COPY acp_server/ ./acp_server/
 COPY bedrock_model/ ./bedrock_model/
