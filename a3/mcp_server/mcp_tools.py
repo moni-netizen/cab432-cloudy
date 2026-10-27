@@ -1,17 +1,25 @@
 from __future__ import annotations
 # this is meant to hold the MCP server (for now) and define my toolkit
-from github import Auth, Github
+
+
 from fastmcp import FastMCP
 import boto3
+from botocore.exceptions import ClientError
 import json
+
 from botocore.exceptions import ClientError
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
 
+# for page retrieval
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlsplit, unquote
+
 # my super scummy PAT storage (sorry)
 def get_secret() -> dict:
 
-    secret_name = "n12023868-secrets"
+    secret_name = "n12023868-a3-secrets"
     region_name = "ap-southeast-2"
 
     # Create a Secrets Manager client
@@ -30,6 +38,20 @@ def get_secret() -> dict:
 
     return json.loads(response['SecretString'])
 
+
+#region s3vector-config
+aws_region = "ap-southeast-2"
+bucket_name = "n12023868-pages"  
+index = "stardew-valley"
+
+#region s3_vectors & bedrock
+bedrock = boto3.client("bedrock-runtime", region_name = aws_region)
+s3vectors = boto3.client("s3vectors", region_name = aws_region)
+
+# this is to embed our question to properly query s3
+titan_model_id = "amazon.titan-embed-image-v1"
+DIMENSION = 256
+
 #region github-configuration
 secrets = get_secret()
 
@@ -43,169 +65,128 @@ verifier = StaticTokenVerifier(
         },
     },
 )
-mcp = FastMCP("CAB432 Assessment 2: Track B",
+
+mcp = FastMCP("CAB432 Assessment 3: Steam MCP Server",
  auth=verifier)
 
-token = secrets["GITHUB_PAT"]
-auth = Auth.Token(token)
-g = Github(auth = auth)
-
-repo_name = "moni-netizen/gcsim-test"
-repo = g.get_repo(repo_name)
 #endregion github-configuration
 
-#region s3vector-config
-REGION = "ap-southeast-2"
-BUCKET = "n12023868-issues-vector"  
-INDEX = "lodged-issues"
-
-TITAN_MULTIMODAL_MODEL_ID = "amazon.titan-embed-image-v1"
-DIMENSION = 256
-# option if i want to add gemma since im using fricken nemotron
-#VISION_MODEL_ID = "google.gemma-3-12b-it"
-#endregion s3vector config
-
-#region s3_vectors & bedrock
-bedrock = boto3.client("bedrock-runtime", region_name = REGION)
-s3vectors = boto3.client("s3vectors", region_name = REGION)
 #endregion s3_vectors & bedrock
-
-#region process-pr
 @mcp.tool
-def process_pull_request(pr_number: int) -> dict:
-    """Process a pull request and summarise it.
-    """
-    try:
-        pr = repo.get_pull(pr_number)
-        username = pr.user.login
-        state = pr.state
-        title = pr.title
-        body = pr.body
+def answer_question(question: str) -> list:
+    # create an embedding for our response
+    embedding = embed_question(question)
 
-        return {"title": title, "body": body, "username": username, "state": state}
-    except:
-        return {"body": "No pull request found. Maybe it was the wrong number?"}
-#endregion process-pr
+    # query the s3vector
+    matching_links = search_s3(embedding)
 
-@mcp.tool
-def write_comment(id: int, response: str) -> dict:
-    """Write a comment to this issue. I'm not actuall """
-    try:
-        issue = repo.get_issue(number = id)
-        issue_comments = issue.get_comments()
-        
-        # check if a comment has already been written
-        if issue_comments.totalCount == 0 and issue.state == "open":
-            issue.create_comment(response)
-            return {"status": 200, "body": "comment posted."}
-                
-        else:
-            return {"status": 401, "body": "issue closed or already commented. disregard request."}
-    except:
-        return {"status": 400, "body": "error during calculations."}
+    # retrieve page body
+    responses = []
+    for urls in matching_links:
+        page_info = read_page(urls)
+        responses.append(page_info)
 
-@mcp.tool
-def check_and_store(issue_id: int) -> list:
-    """
-    Finds similar issues to that of our current issue_id, and stores
-    info inside the s3 vector base for future queries. 
-    """
-    try:
-        similar_issues = find_similar_issues(issue_id)
-        issue_info, embeddings = embed_issue(issue_id)
-
-        store_issue(issue_info, embeddings)
-        return(similar_issues)
-    except:
-        return([])
+    # return to bot
+    return responses
 
 #region helper-functions
-def invoke_titan(payload: dict) -> list[float]:
+def create_embedding(payload: dict) -> list[float]:
     """Return one 256-dimensional Titan Multimodal embedding."""
     # Bedrock creates the embedding; S3 Vectors stores and searches it.
     response = bedrock.invoke_model(
-        modelId=TITAN_MULTIMODAL_MODEL_ID,
+        modelId=titan_model_id,
         contentType="application/json",
         accept="application/json",
         body=json.dumps(payload),
     )
     return json.loads(response["body"].read())["embedding"]
  
-def embed_issue(id: int) -> tuple[dict, list[float]]:
-    """Embed an issue body into the vector space. im pre sure the string 'text' 
-       will need to be changed at some point to... something related to the issue"""
+
+def embed_question(question: str) -> list[float]:
+    """embeds our question! returns the actual embedding """
 
     # get the issue info
     try:
-        issue = repo.get_issue(id) 
+        contents = {
+            "inputText": question,
+            "embeddingConfig": {"outputEmbeddingLength": DIMENSION}
+        }
 
-        issue_info = {
-                        "issueNo": id,
-                        "title": issue.title,
-                        "url": issue.html_url
-                    }
-
-        return issue_info, invoke_titan(
-            {"inputText": f"{issue.title}-{issue.body}", "embeddingConfig": {"outputEmbeddingLength": DIMENSION}},
-        )
+        embedding = create_embedding(contents)
+        return embedding
     except:
-        return{"statusCode":400, "body": "issue not found"}, None
+        return None
 
-def store_issue(issue_info: dict, embedding: list[float]) -> None:
-    """Store a message into Amazon S3 vectors. This will submit images of pull 
-       requests and also like... text descriptions i guess? This gets called after find_similar_issues
-       to ensure we retrieve the AI's response and any images."""
-    
-    # add this new issue into the s3 vector bucket
-    s3vectors.put_vectors(
-        vectorBucketName = BUCKET,
-        indexName = INDEX,
-        vectors = [
-            {
-                "key": f"issue-{issue_info.get("issueNo")}",
-                "data": {"float32": embedding},
-                "metadata": issue_info  
-            }
-        ]
-    )
 
-def find_similar_issues(issue_id: int) -> list:
-    """This will retrieve the three most similar results and return them to the bot.
-       Our assistant will then process these issues and write a comment to the issue.  """
-
-    info, embedding = embed_issue(issue_id)
-  
+def search_s3(embedding: list[float]) -> list:
+    """using our embedding, find the top 3 matches that might best answer 
+    our question. yay! returns them as a list of urls """
     result = s3vectors.query_vectors(
-        vectorBucketName=BUCKET,
-        indexName=INDEX,
+        vectorBucketName=bucket_name,
+        indexName=index,
         queryVector={"float32": embedding},
         topK=3,
         returnDistance=True,
         returnMetadata=True,
     )
     vectors = result.get("vectors",[])
-    matching_ids = []
+    top_matches = []
 
     if len(vectors) > 0:
         for vector in vectors:
-            matching_ids.append(vector.get("metadata").get("issueNo"))
+            top_matches.append(vector.get("metadata").get("url"))
+    return top_matches
 
-    # returns the three most similar issues by issue number        
-    return(return_bodies(matching_ids))
 
-def return_bodies(items: list) -> list:
-    payload = []
-    for item in items:
-        issue = repo.get_issue(number = item)
-        issue_body = issue.body
-        comments = [
-            {"user": c.user.login, "body": c.body, "created_at": c.created_at.isoformat()}
-            for c in issue.get_comments()
-        ]
-        payload.append({"body": issue_body, "comments": comments})
-    
-    return payload
+def get_article_html(url: str) -> str:
+    """using our urls, we want to see its contents, this requests the html 
+    of the url supplied """
+    parsed = urlsplit(url)
 
+    if not parsed.path.startswith("/wiki/"):
+        raise ValueError(f"Expected a /wiki/ article URL: {url}")
+
+    page_title = unquote(parsed.path[len("/wiki/"):])
+
+    response = requests.get(
+        "https://stardewvalley.fandom.com/api.php",
+        params={
+            "action": "parse",
+            "page": page_title,
+            "prop": "text",
+            "redirects": 1,
+            "format": "json",
+            "formatversion": 2,
+        },
+        headers={"User-Agent": "WikiContentWorker/1.0"},
+        timeout=30,
+    )
+
+    response.raise_for_status()
+    data = response.json()
+
+    if "error" in data:
+        raise RuntimeError(f"MediaWiki API error: {data['error']}")
+
+    return data["parse"]
+
+# using the html output, we want to prettify and process it.
+def read_page(link: str) -> dict:
+    """calls get_article_html to just read the page and spit its url, title 
+    and text luh calm chill shi"""
+    data = get_article_html(link)
+    soup = BeautifulSoup(data["text"], "html.parser")
+
+    for element in soup(["script", "style"]):
+        element.decompose()
+
+    text = " ".join(soup.get_text(separator=" ", strip=True).split())
+
+    return {
+        "url": link,
+        "title": data["title"],
+        "text": text
+    }
 #endregion helper-functions
 
 
@@ -213,5 +194,5 @@ def return_bodies(items: list) -> list:
 
 
 if __name__ == "__main__":
-   mcp.run(show_banner=False, transport="streamable-http", host="0.0.0.0", port=8080)
+   mcp.run(show_banner=False, transport="streamable-http", host="127.0.0.1", port=8080)
 

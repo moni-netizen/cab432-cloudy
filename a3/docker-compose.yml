@@ -1,0 +1,28 @@
+services:
+  mcp-server:
+    build:
+      context: ./mcp_server
+    volumes:
+     - ${USERPROFILE}\.aws:/home/appuser/.aws:ro 
+    networks:
+     - internal
+
+  agent-app:
+    build:
+      context: .
+      dockerfile: Dockerfile 
+    ports:
+      - "3000:3000"
+    environment:
+      - AWS_REGION=ap-southeast-2
+    volumes:
+      - ${USERPROFILE}\.aws:/home/appuser/.aws:ro
+    depends_on:
+      - mcp-server
+    networks:
+      - internal
+      - public
+
+networks:
+  internal:
+  public:

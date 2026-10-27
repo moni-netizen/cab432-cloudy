@@ -1,5 +1,6 @@
 """ ======= ASSESSMENT 3 PROGRESS LOG =======
     25/10 - copied file from a2.
+    27/10 - i think i finished the mcp toolset
 
 
 
@@ -41,6 +42,7 @@ from pydantic_ai_harness.experimental.acp import run_acp_stdio_sync
 from fastmcp.client.transports import StreamableHttpTransport
 
 import boto3
+from botocore.exceptions import ClientError
 import json
 
 # aws secrets function
@@ -140,15 +142,14 @@ auth = MCP_SHARED_TOKEN), init_timeout=30.0)
 agent = Agent(
     model,
     instructions=(
-        "You are an assistant who helps users get achievements for STARDEW VALLEY"
-        "When asked about an achievement, use the search_sites"
-        "use process_pull_request to process pull requests by id."
-        "use check_and_store to find the three most similar issues to an issue, and store this to the s3 vectors. you are to list the similarities between your issue and the vector results, but do not make a comment, just respond to the request."
-        "please be nice to the chatter. if you require more clarification about your tasks, you must ask for more clarification."
+        "You are an assistant who helps users get achievements for Stardew Valley. "
+        "When asked a question about Stardew Valley, use the answer_question tool to query the vector store. "
+        "Use its output to guide the player towards the achievement or topic. "
+        "If asked about another game, say that only Stardew Valley is supported right now."
     ),
     toolsets=[mcp_toolset],
     capabilities=[hooks],
 )
 
 if __name__ == "__main__":
-    run_acp_stdio_sync(agent, name = "CAB432 A2 MCP AGENT", version = "1.0.0")
+    run_acp_stdio_sync(agent, name = "CAB432 A3 MCP AGENT", version = "1.0.0")

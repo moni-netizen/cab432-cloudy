@@ -1,30 +1,27 @@
 from __future__ import annotations
 
 import json, os, logging
+import signal, time 
+
+from datetime import datetime, timezone 
+
 import requests
 from bs4 import BeautifulSoup
 
 from urllib.parse import urlsplit, unquote
 
 import boto3
+from boto3.dynamodb.conditions import Attr, Key
 from botocore.exceptions import ClientError
 
 aws_region = "ap-southeast-2"
 sqs_queue_url = "https://sqs.ap-southeast-2.amazonaws.com/901444280953/n12023868-wiki-pages-queue"
-sqs = boto3.client("sqs")
-
-response = sqs.receive_message(
-    QueueUrl = sqs_queue_url,
-    MaxNumberOfMessages = 1,
-    WaitTimeSeconds = 15
-)
+sqs = boto3.client("sqs", region_name = aws_region)
 
 # for embeddings
 bedrock = boto3.client("bedrock-runtime", region_name = aws_region)
 titan_model = "amazon.titan-embed-image-v1"
 dimension = 256
-
-
 
 # for s3vectors
 s3vectors = boto3.client("s3vectors", region_name = aws_region)
@@ -47,15 +44,21 @@ def process_page(payload: dict) -> tuple[int, dict]:
 
         # store the page
         response = store_to_s3(page_info)
+
+        print("stored")
         if response:
             # store to dynamodb
-            aa
+            message = update_status(page_info)
+
+            if message:
+                return 200, page_info
+
 
         # return ??
-        return 200, page_info
+        return 500, page_info
     
-    except:
-        return 400, {"message": "kil yourself"}
+    except Exception as e:
+        return 400, {"message": e}
         print("they hit the pentagon...")
 
 
@@ -148,21 +151,66 @@ def store_to_s3(page_info: dict):
                 "metadata": {"url": page_info["url"], "title": page_info["title"]}
             }
         ])
+
+        print(f"vector successfully stored for: {page_info["title"]}")
         return "saved"
     
     except Exception as e:
         return None
 
 # updates the dynamodb table status
-def update_status():
-    aa
+def update_status(page_info: dict):
+    try:
+        now = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+        page = table.scan(FilterExpression=Attr("url").eq(page_info["url"])).get("Items")[0]
+
+        response = table.update_item(
+            Key = {"id": page["id"]},
+            UpdateExpression="SET #s = :s, updatedAt = :t",
+            ConditionExpression="attribute_exists(id)",   # don't create a new item by accident
+            ExpressionAttributeNames={"#s": "status"},    # status is a DynamoDB reserved word
+            ExpressionAttributeValues={":s": "complete", ":t": now},
+        )
+
+        print("updated!")
+        return True
+    except ClientError as e:
+        return False
 
 
+# ======= MAIN WORKING AREA =======
+stop = False
+codes = []
 
-# gets all the links from the queue! i checked, theres 20
-message = response.get("Messages", [])[0]
-page_list = json.loads(message["Body"])
+def _on_term(signum, frame):
+    global stop
+    stop = True                       # finish the current batch, then leave the loop
 
-code, page_info = process_page(page_list[1])
+signal.signal(signal.SIGTERM, _on_term)
 
-print(code)
+while not stop:
+    try:
+        r = sqs.receive_message(
+            QueueUrl=sqs_queue_url,
+            MaxNumberOfMessages=1,
+            WaitTimeSeconds=20,        # long polling, so idle polling is cheap
+            VisibilityTimeout=300,     # 5x your ~1 minute batch time
+        )
+    except Exception as e:             # throttling or a network blip must not kill the worker
+        print(f"receive failed: {type(e).__name__}: {e}")
+        time.sleep(5)
+        continue
+
+    for m in r.get("Messages", []):    # key is missing on an empty poll
+        try:
+            page_list = json.loads(m["Body"])
+            for page in page_list:
+                status_code, output = process_page(page)
+                codes.append(status_code)
+                
+        except Exception as e:
+            print(f"batch failed: {type(e).__name__}: {e}")
+        finally:
+            sqs.delete_message(QueueUrl=sqs_queue_url, ReceiptHandle=m["ReceiptHandle"])
+
+print("SIGTERM received, exiting cleanly")

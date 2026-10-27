@@ -1,0 +1,5 @@
+services:
+  worker:
+    build: .
+    volumes:
+     - ${USERPROFILE}/.aws:/home/appuser/.aws
