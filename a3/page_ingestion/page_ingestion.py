@@ -179,30 +179,6 @@ def update_status(page_info: dict):
 
 
 # ======= MAIN WORKING AREA =======
-
-# receives one batch of messages
-# response = sqs.receive_message(
-#     QueueUrl = sqs_queue_url,
-#     MaxNumberOfMessages = 1,
-#     WaitTimeSeconds = 15
-# )
-
-# message = response.get("Messages", [])[0]
-# page_list = json.loads(message["Body"])
-
-# codes = []
-# for page in page_list:
-#     status_code, output = process_page(page)
-#     codes.append(status_code)
-
-# print("wooo we made it!!!")
-# print(codes)
-# receipt = message["ReceiptHandle"]
-
-
-# # delete sqs message
-# sqs.delete_message(QueueUrl = sqs_queue_url, ReceiptHandle = message["ReceiptHandle"])
-
 stop = False
 codes = []
 

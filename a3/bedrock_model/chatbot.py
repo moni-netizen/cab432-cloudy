@@ -1,5 +1,6 @@
 """ ======= ASSESSMENT 3 PROGRESS LOG =======
     25/10 - copied file from a2.
+    27/10 - i think i finished the mcp toolset
 
 
 
@@ -141,10 +142,9 @@ agent = Agent(
     model,
     instructions=(
         "You are an assistant who helps users get achievements for STARDEW VALLEY"
-        "When asked about an achievement, use the search_sites"
-        "use process_pull_request to process pull requests by id."
-        "use check_and_store to find the three most similar issues to an issue, and store this to the s3 vectors. you are to list the similarities between your issue and the vector results, but do not make a comment, just respond to the request."
-        "please be nice to the chatter. if you require more clarification about your tasks, you must ask for more clarification."
+        "When asked a question about stardew valley, use the answer_question to query an s3vector store"
+        "Using this output, you extract the text and guide a player towards this achievement/topic."
+        "when asked about another game, remind them that only stardew valley can be evaluated right now."
     ),
     toolsets=[mcp_toolset],
     capabilities=[hooks],
