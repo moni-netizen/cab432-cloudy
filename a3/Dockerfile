@@ -12,7 +12,7 @@ COPY bedrock_model/ ./bedrock_model/
 
 USER appuser
 
-EXPOSE 3000 8080
+EXPOSE 3000
 
 WORKDIR /app/acp_server
 CMD ["python", "-u", "acp_websocket.py", "--host", "0.0.0.0", "--verbose"]
