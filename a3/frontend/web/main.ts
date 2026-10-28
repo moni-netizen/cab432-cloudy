@@ -16,7 +16,7 @@ interface ChatMessage {
   parts: acp.ContentBlock[];
 }
 
-type ThemePreference = "light" | "dark" | "system";
+
 
 const cancelButton = getElement<HTMLButtonElement>("cancel");
 const promptForm = getElement<HTMLFormElement>("prompt-form");
@@ -27,10 +27,7 @@ const fileInput = getElement<HTMLInputElement>("file-input");
 const attachmentElement = getElement<HTMLElement>("attachment");
 const messagesElement = getElement<HTMLElement>("messages");
 const statusElement = getElement<HTMLElement>("connection-status");
-const themeToggle = getElement<HTMLButtonElement>("theme-toggle");
-
-const themeStorageKey = "acp-chat-theme";
-let themePreference = readStoredTheme() ?? "system";
+const backButton = getElement<HTMLButtonElement>("back-to-dashboard");
 
 let connection: acp.ClientConnection | null = null;
 let sessionId: string | null = null;
@@ -44,30 +41,11 @@ function getElement<T extends Element>(id: string): T {
   return element as unknown as T;
 }
 
-function readStoredTheme(): ThemePreference | null {
-  try {
-    const stored = window.localStorage.getItem(themeStorageKey);
-    return stored === "light" || stored === "dark" || stored === "system" ? stored : null;
-  } catch {
-    return null;
-  }
-}
+
 
 function applyTheme(): void {
-  const isDark = themePreference === "dark" ||
-    (themePreference === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-  document.documentElement.dataset.theme = isDark ? "dark" : "light";
-  const label = isDark ? themeToggle.dataset.lightLabel : themeToggle.dataset.darkLabel;
-  themeToggle.textContent = label ?? (isDark ? "Light mode" : "Dark mode");
-  themeToggle.setAttribute("aria-pressed", String(isDark));
-}
-
-function storeTheme(): void {
-  try {
-    window.localStorage.setItem(themeStorageKey, themePreference);
-  } catch {
-    // The theme still applies for this page if storage is unavailable.
-  }
+  const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = "light";
 }
 
 function setStatus(text: string, kind: "idle" | "working" | "ready" | "error"): void {
@@ -327,17 +305,8 @@ function reportConnectionError(error: unknown): void {
   addMessage({ role: "system", parts: [{ type: "text", text: errorMessage(error) }] });
 }
 
-themeToggle.addEventListener("click", () => {
-  const isDark = document.documentElement.dataset.theme === "dark";
-  themePreference = isDark ? "light" : "dark";
-  storeTheme();
-  applyTheme();
-});
-
 const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
-colorScheme.addEventListener("change", () => {
-  if (themePreference === "system") applyTheme();
-});
+colorScheme.addEventListener("change", applyTheme);
 
 cancelButton.addEventListener("click", () => {
   void cancelPrompt();
@@ -345,6 +314,10 @@ cancelButton.addEventListener("click", () => {
 
 attachButton.addEventListener("click", () => {
   fileInput.click();
+});
+
+backButton.addEventListener("click", () => {
+  window.location.href = "/dashboard.html";
 });
 
 fileInput.addEventListener("change", () => {
