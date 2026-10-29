@@ -1,25 +1,25 @@
 :root {
   /* --- Theme tokens: edit these to restyle --- */
-  --text: #0f1420;
+  --text: #283771;
   --muted: #667085;
   --line: #98a2b3;
   --danger: #b42318;
   --ok: #067647;
 
-  --login-accent: #0d1b5e;     /* navy */
-  --register-accent: #1f6f6b;  /* teal */
+  --login-accent: #56659D;     /* navy */
+  --register-accent: #C97792;  /* teal */
   --accent: var(--login-accent);
 
   /* Left image slot: set to e.g. url("/art.jpg") (file in /public). */
-  --art-image: none;
+  --art-image: url("/login-1.jpg");
   --art-fallback: linear-gradient(160deg, #0d1b5e 0%, #1b4f6b 55%, #e2a33a 130%);
 
   /* Right panel: any colour, gradient or image. */
-  --panel-bg: #ffffff;
-  --panel-image: none;
+  --panel-bg: #C9D4DA;
+  --panel-image: url("/login-right.png");
 
   color: var(--text);
-  background: #fff;
+  background: #C9D4DA;
   color-scheme: light;
   font-family: Outfit, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   line-height: 1.5;
@@ -35,7 +35,13 @@ button, input { font: inherit; }
 /* ---------- Login / register ---------- */
 body.auth[data-mode="register"] { --accent: var(--register-accent); }
 
-.auth-shell { display: grid; grid-template-columns: 1fr 1fr; min-height: 100dvh; }
+.auth-shell {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100dvh;
+  gap: 0;
+  background: var(--art-image) center / cover no-repeat;   /* sits behind both halves so a rounding gap shows art, not white */
+}
 
 .auth-art {
   background: var(--art-image) center / cover no-repeat, var(--art-fallback);
@@ -45,6 +51,7 @@ body.auth[data-mode="register"] { --accent: var(--register-accent); }
   display: grid;
   place-items: center;
   padding: 2rem;
+  margin-left: 1px;
   background: var(--panel-image) center / cover no-repeat, var(--panel-bg);
 }
 
@@ -110,15 +117,15 @@ body.dash { display: grid; grid-template-columns: 16rem 1fr; background: #fff ur
   text-decoration: none;
   padding: .7rem 1rem;
   border-radius: .9rem;
-  background: #0d1b5e;
-  color: #EFEAE4;
+  background: #95BAEE;
+  color: #21274F;
   font-weight: 500;
 }
 .dash-nav .btn:hover { filter: brightness(1.15); }
 
 .dash-main {
   min-width: 0;
-  color: #8D286B;
+  color: #21274F;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -133,7 +140,7 @@ body.dash { display: grid; grid-template-columns: 16rem 1fr; background: #fff ur
   flex: 0 0 auto;               /* height comes from the content, so nothing overflows */
   padding: 16px 24px;
   border-radius: 12px;
-  background: #efe9e3;
+  background: #fff;
   overflow: hidden;             /* clips the scrollbar to the rounded corners */
 }
 .games-section h2 { margin: 0 0 4px; }
@@ -141,7 +148,7 @@ body.dash { display: grid; grid-template-columns: 16rem 1fr; background: #fff ur
                overflow-x: auto; padding: 8px 0; scrollbar-width: thin; }
 .game-card { flex: none; width: calc((100% - 3 * 16px) / 4);}
 .game-card img { width: 95%; aspect-ratio: 460 / 215; object-fit: cover; display: block;
-                 background: #efe9e3; }
+                 background: #fff; }
 .game-name { margin: 6px 0 0; font-size: 0.9rem; text-align: center;
              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .charts {
@@ -152,10 +159,10 @@ body.dash { display: grid; grid-template-columns: 16rem 1fr; background: #fff ur
   flex-wrap: nowrap;
   width: 100%;
   padding: 24px;
-  background: #efe9e3;
+  background: #fff;
   border-radius: 12px;
 }
-.chart-box { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; background-color: #efe9e3; }
+.chart-box { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; background-color: #fff; }
 .chart-box h3 {font-size: 1.6rem; margin: 0 0 4px; } 
 .chart-div { flex: 1; min-height: 0; position: relative; }
 
