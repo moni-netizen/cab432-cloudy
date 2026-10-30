@@ -194,5 +194,5 @@ def read_page(link: str) -> dict:
 
 
 if __name__ == "__main__":
-   mcp.run(show_banner=False, transport="streamable-http", host="127.0.0.1", port=8080)
+   mcp.run(show_banner=False, transport="streamable-http", host="0.0.0.0", port=3001)
 

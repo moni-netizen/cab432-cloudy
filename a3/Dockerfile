@@ -5,14 +5,14 @@ WORKDIR /app
 RUN useradd --create-home --shell /bin/bash appuser
 
 COPY app_requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r app_requirements.txt
 
 COPY acp_server/ ./acp_server/
 COPY bedrock_model/ ./bedrock_model/
 
 USER appuser
 
-EXPOSE 3000
+EXPOSE 8080
 
 WORKDIR /app/acp_server
 CMD ["python", "-u", "acp_websocket.py", "--host", "0.0.0.0", "--verbose"]

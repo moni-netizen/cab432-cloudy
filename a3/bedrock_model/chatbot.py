@@ -1,6 +1,8 @@
 """ ======= ASSESSMENT 3 PROGRESS LOG =======
     25/10 - copied file from a2.
     27/10 - i think i finished the mcp toolset
+    27/10 - working locally
+    28/10 - i want to blow up the planet
 
 
 

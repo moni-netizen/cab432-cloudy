@@ -3,7 +3,7 @@ services:
     build:
       context: ./mcp_server
     volumes:
-     - ${USERPROFILE}\.aws:/home/appuser/.aws:ro 
+     - ${USERPROFILE}\.aws:/home/appuser/.aws
     networks:
      - internal
 
@@ -12,11 +12,11 @@ services:
       context: .
       dockerfile: Dockerfile 
     ports:
-      - "3000:3000"
+      - "8080:8080"
     environment:
       - AWS_REGION=ap-southeast-2
     volumes:
-      - ${USERPROFILE}\.aws:/home/appuser/.aws:ro
+      - ${USERPROFILE}\.aws:/home/appuser/.aws
     depends_on:
       - mcp-server
     networks:
